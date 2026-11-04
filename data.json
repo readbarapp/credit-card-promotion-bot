@@ -1,0 +1,65 @@
+{
+  "lastUpdated": null,
+  "lastUpdatedHkt": null,
+  "generatedBy": "scripts/scraper.js + Gemini",
+  "banks": [
+    {
+      "id": "hsbc",
+      "name": "滙豐銀行",
+      "nameEn": "HSBC",
+      "url": "https://www.hsbc.com.hk/zh-hk/credit-cards/",
+      "enabled": true
+    },
+    {
+      "id": "hangseng",
+      "name": "恒生銀行",
+      "nameEn": "Hang Seng",
+      "url": "https://www.hangseng.com/zh-hk/personal/cards/spending-privileges/offers-of-the-month-all/month-creditcard/",
+      "enabled": true
+    },
+    {
+      "id": "boc",
+      "name": "中銀香港",
+      "nameEn": "BOCHK",
+      "url": "https://www.bochk.com/tc/creditcard/promotions/offers.html",
+      "enabled": true
+    },
+    {
+      "id": "sc",
+      "name": "渣打銀行",
+      "nameEn": "Standard Chartered",
+      "url": "https://www.sc.com/hk/zh/credit-cards/offers/",
+      "enabled": true
+    },
+    {
+      "id": "mox",
+      "name": "Mox Bank",
+      "nameEn": "Mox",
+      "url": "https://mox.com/zh/promotions/",
+      "enabled": true
+    },
+    {
+      "id": "bea",
+      "name": "東亞銀行",
+      "nameEn": "BEA",
+      "url": "https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html",
+      "enabled": true
+    },
+    {
+      "id": "alipayhk",
+      "name": "AlipayHK",
+      "nameEn": "AlipayHK",
+      "url": "https://www.alipayhk.com/zh/promotion/",
+      "enabled": true
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "total": 0,
+    "active": 0,
+    "isNew": 0,
+    "expiring7d": 0,
+    "durationMs": 0
+  },
+  "offers": []
+}

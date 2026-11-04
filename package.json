@@ -1,0 +1,16 @@
+{
+  "name": "hk-bank-promo-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Zero-cost Hong Kong bank & payment promo scraper + GitHub Pages dashboard",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "scrape": "node scripts/scraper.js",
+    "check": "node --check scripts/scraper.js && node --check scripts/ai-parser.js && node --check config/banks.js"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}

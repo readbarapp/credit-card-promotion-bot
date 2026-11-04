@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="last-updated" content="">
+  <title>香港銀行與支付優惠 Dashboard</title>
+  <style>
+    :root {
+      --navy: #0e1c36;
+      --navy-2: #163056;
+      --gold: #c4a35a;
+      --gold-soft: #f3e6c4;
+      --cream: #f6f1e6;
+      --ink: #1c2430;
+      --muted: #5c6777;
+      --line: #e4dccb;
+      --card: #fffcf6;
+      --danger: #c43b3b;
+      --ok: #1b7a4a;
+      --warn: #b45309;
+      --shadow: 0 10px 30px rgba(14, 28, 54, 0.08);
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "PingFang HK", "Noto Sans TC", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
+      background: radial-gradient(1200px 500px at 10% -10%, #f3e6c4 0%, transparent 50%), var(--cream);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    a { color: var(--navy-2); }
+    header {
+      background: linear-gradient(120deg, var(--navy), var(--navy-2));
+      color: #fff;
+      padding: 22px 20px 18px;
+    }
+    .wrap { width: min(1180px, calc(100% - 24px)); margin: 0 auto; }
+    .header-row { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .kicker { letter-spacing: 0.18em; font-size: 12px; color: var(--gold); text-transform: uppercase; margin: 0 0 6px; }
+    h1 { margin: 0; font-size: clamp(22px, 3vw, 32px); line-height: 1.25; }
+    .sub { margin: 8px 0 0; color: rgba(255,255,255,.78); font-size: 14px; }
+    .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button, .btn {
+      appearance: none; border: 0; cursor: pointer; font: inherit;
+      border-radius: 999px; padding: 10px 14px; font-weight: 650;
+    }
+    .btn-gold { background: var(--gold); color: var(--navy); }
+    .btn-ghost { background: rgba(255,255,255,.12); color: #fff; }
+    .btn-navy { background: var(--navy); color: #fff; }
+    .btn-ok { background: var(--ok); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-line { background: #fff; border: 1px solid var(--line); color: var(--ink); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .console {
+      margin-top: -18px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      border-radius: 999px; padding: 6px 10px; font-size: 13px; font-weight: 700;
+      background: #eef3ec; color: var(--ok);
+    }
+    .status-pill.run { background: #fff4d6; color: var(--warn); }
+    .status-pill.fail { background: #fde8e8; color: var(--danger); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .console-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; margin: 22px auto 40px; }
+    .panel, .card, .howto {
+      background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .filters { padding: 14px; display: grid; grid-template-columns: 1.4fr .8fr .8fr; gap: 8px; margin-bottom: 14px; }
+    input, select, textarea {
+      width: 100%; font: inherit; padding: 10px 12px; border-radius: 12px;
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+    }
+    .new-strip { padding: 14px 16px; margin-bottom: 14px; }
+    .new-strip h2 { margin: 0 0 10px; font-size: 16px; }
+    .chip-row { display: flex; gap: 8px; overflow: auto; padding-bottom: 4px; }
+    .chip {
+      flex: 0 0 auto; background: #fff; border: 1px solid var(--gold); color: var(--navy);
+      border-radius: 14px; padding: 10px 12px; min-width: 210px;
+    }
+    .chip b { display: block; margin-bottom: 4px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .offer { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .offer.expired { opacity: .62; }
+    .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 4px 8px; }
+    .badge.new { background: #d9f5e5; color: var(--ok); }
+    .badge.hot { background: #fde8e8; color: var(--danger); }
+    .badge.bank { background: var(--gold-soft); color: var(--navy); }
+    .badge.gone { background: #eee; color: #666; }
+    .offer h3 { margin: 0; font-size: 18px; line-height: 1.35; }
+    .rewards { margin: 0; color: var(--ink); }
+    .deadline { margin: 0; font-size: 13px; }
+    .deadline.hot { color: var(--danger); font-weight: 800; }
+    details { border-top: 1px solid var(--line); padding-top: 10px; }
+    summary { cursor: pointer; font-weight: 700; }
+    .checks { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+    .checks li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+    .checks input { width: auto; margin-top: 3px; }
+    .howto, .side-card { padding: 16px; margin-bottom: 12px; }
+    .howto h2, .side-card h2 { margin: 0 0 8px; font-size: 16px; }
+    .howto ol { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
+    .empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+    footer { padding: 0 0 40px; color: var(--muted); font-size: 12px; }
+    dialog {
+      border: 0; border-radius: 20px; width: min(760px, calc(100% - 20px));
+      padding: 0; box-shadow: 0 30px 80px rgba(0,0,0,.28);
+    }
+    dialog::backdrop { background: rgba(14,28,54,.55); }
+    .modal { padding: 18px; }
+    .modal h2 { margin: 0 0 8px; }
+    .modal-grid { display: grid; gap: 10px; margin: 12px 0; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: top; }
+    .tiny { display: flex; gap: 6px; }
+    .toast {
+      position: fixed; right: 16px; bottom: 16px; background: var(--navy); color: #fff;
+      padding: 12px 14px; border-radius: 12px; display: none; z-index: 20; max-width: min(420px, calc(100% - 24px));
+    }
+    code { background: #efe7d4; padding: 1px 5px; border-radius: 6px; }
+    @media (max-width: 900px) {
+      .layout, .filters, .row-2, .console { grid-template-columns: 1fr; }
+      .console-actions { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap header-row">
+      <div>
+        <p class="kicker">GitHub Pages · 0 成本</p>
+        <h1>香港銀行與支付優惠情報</h1>
+        <p class="sub">前端主導控制 GitHub Actions 爬蟲 · 資料來源 <code>data.json</code> · 時間以香港時區顯示</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-ghost" id="btn-howto" type="button">使用說明</button>
+        <button class="btn-gold" id="btn-admin" type="button">⚙️ 管理監控平台</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <section class="console" aria-label="爬蟲控制台">
+      <div>
+        <span class="status-pill" id="worker-pill"><span class="dot"></span><span id="worker-label">控制台待命</span></span>
+        <p class="muted" id="worker-meta">尚未讀取 GitHub Actions 狀態。儲存 PAT 後可即時監控、啟動或終止 Worker。</p>
+      </div>
+      <div class="console-actions">
+        <button class="btn-ok" id="btn-run" type="button">🚀 立即執行一次爬蟲</button>
+        <button class="btn-danger" id="btn-stop" type="button">⏹ 終止 Worker</button>
+        <a class="btn btn-line" id="link-actions" href="#" target="_blank" rel="noopener">開啟 Actions</a>
+      </div>
+    </section>
+
+    <div class="layout">
+      <div>
+        <section class="panel new-strip" id="new-section">
+          <h2>🆕 New 專區</h2>
+          <div class="chip-row" id="new-row"></div>
+        </section>
+        <section class="panel filters">
+          <input id="q" type="search" placeholder="搜尋優惠主題、獎賞、條件…" aria-label="搜尋">
+          <select id="f-bank" aria-label="平台篩選"><option value="">全部平台</option></select>
+          <select id="f-when" aria-label="到期日篩選">
+            <option value="">全部狀態</option>
+            <option value="new">只看 New</option>
+            <option value="7d">7 天內到期</option>
+            <option value="active">進行中</option>
+            <option value="expired">已過期 / Expired</option>
+          </select>
+        </section>
+        <div class="grid" id="cards"></div>
+        <div class="empty panel" id="empty" hidden>沒有符合條件的優惠。請調整篩選，或由控制台觸發一次爬蟲。</div>
+      </div>
+      <aside>
+        <section class="howto" id="howto">
+          <h2>如何新增／修改監控平台</h2>
+          <p class="muted">GitHub Pages 是靜態網站，清單存在倉庫的 <code>config/banks.js</code>。</p>
+          <ol>
+            <li>按「⚙️ 管理監控平台」，貼上有 <code>repo</code> 權限的 GitHub PAT（只存瀏覽器 LocalStorage）。</li>
+            <li>新增、編輯或刪除銀行名稱與官方總覽 URL。</li>
+            <li>按「儲存並更新至 GitHub」，前端會用 Contents API 直接 commit <code>config/banks.js</code>。</li>
+            <li>再按「🚀 立即執行一次爬蟲」觸發 Repository Dispatch。</li>
+            <li>或到 GitHub 網頁直接編輯 <code>config/banks.js</code> 後，於 Actions 手動 Run workflow。</li>
+          </ol>
+        </section>
+        <section class="side-card">
+          <h2>目前監測平台</h2>
+          <div id="bank-side" class="muted">載入中…</div>
+        </section>
+        <section class="side-card">
+          <h2>最近錯誤 Log</h2>
+          <div id="error-side" class="muted">尚無錯誤。</div>
+        </section>
+      </aside>
+    </div>
+    <footer class="wrap">資料由自動化爬蟲與 Gemini 語意抽取產生，僅供參考，實際條款以各平台官網為準。優惠任務勾選狀態只保存在你的瀏覽器。</footer>
+  </div>
+
+  <dialog id="admin">
+    <form class="modal" id="admin-form">
+      <h2>⚙️ 管理監控平台</h2>
+      <p class="muted">PAT 只送到 <code>api.github.com</code>，用來寫入 <code>config/banks.js</code>、觸發／取消 Actions。請用 fine-grained token（Contents + Actions）或 classic <code>repo</code> 權限。</p>
+      <div class="modal-grid">
+        <label>GitHub Personal Access Token
+          <input id="pat" type="password" autocomplete="off" placeholder="ghp_… 或 github_pat_…">
+        </label>
+        <div class="row-2">
+          <label>Owner<input id="owner" placeholder="username 或 org"></label>
+          <label>Repo<input id="repo" placeholder="credit-card-promotion-bot"></label>
+        </div>
+        <div class="tiny">
+          <button class="btn-line" type="button" id="btn-load-banks">讀取倉庫清單</button>
+          <button class="btn-line" type="button" id="btn-save-token">只儲存連線設定</button>
+        </div>
+      </div>
+      <h3>監測清單</h3>
+      <div class="row-2">
+        <input id="new-name" placeholder="平台名稱，例如 天星銀行">
+        <input id="new-url" placeholder="https://… 官方優惠總覽 URL">
+      </div>
+      <div class="tiny" style="margin:8px 0 12px">
+        <button class="btn-navy" type="button" id="btn-add-bank">➕ 新增銀行／平台</button>
+      </div>
+      <div style="overflow:auto; max-height:280px">
+        <table>
+          <thead><tr><th>名稱</th><th>URL</th><th></th></tr></thead>
+          <tbody id="bank-rows"></tbody>
+        </table>
+      </div>
+      <div class="tiny" style="margin-top:14px; justify-content:flex-end">
+        <button class="btn-line" type="button" id="btn-close">關閉</button>
+        <button class="btn-ok" type="button" id="btn-save-github">儲存並更新至 GitHub</button>
+      </div>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status"></div>
+  <script type="application/json" id="embedded-data">{"lastUpdated":null,"lastUpdatedHkt":null,"generatedBy":"scripts/scraper.js + Gemini","banks":[{"id":"hsbc","name":"滙豐銀行","nameEn":"HSBC","url":"https://www.hsbc.com.hk/zh-hk/credit-cards/","enabled":true},{"id":"hangseng","name":"恒生銀行","nameEn":"Hang Seng","url":"https://www.hangseng.com/zh-hk/personal/cards/spending-privileges/offers-of-the-month-all/month-creditcard/","enabled":true},{"id":"boc","name":"中銀香港","nameEn":"BOCHK","url":"https://www.bochk.com/tc/creditcard/promotions/offers.html","enabled":true},{"id":"sc","name":"渣打銀行","nameEn":"Standard Chartered","url":"https://www.sc.com/hk/zh/credit-cards/offers/","enabled":true},{"id":"mox","name":"Mox Bank","nameEn":"Mox","url":"https://mox.com/zh/promotions/","enabled":true},{"id":"bea","name":"東亞銀行","nameEn":"BEA","url":"https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html","enabled":true},{"id":"alipayhk","name":"AlipayHK","nameEn":"AlipayHK","url":"https://www.alipayhk.com/zh/promotion/","enabled":true}],"errors":[],"stats":{"total":0,"active":0,"isNew":0,"expiring7d":0,"durationMs":0},"offers":[]}</script>
+  <script>
+    const KEYS = {
+      pat: "hkpromo.github.pat",
+      owner: "hkpromo.github.owner",
+      repo: "hkpromo.github.repo",
+      checks: "hkpromo.checklist",
+    };
+    const BANKS_PATH = "config/banks.js";
+    const state = {
+      data: { offers: [], banks: [], errors: [] },
+      banks: [],
+      runId: null,
+      pollTimer: null,
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const toast = (msg) => {
+      const el = $("toast");
+      el.textContent = msg;
+      el.style.display = "block";
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => { el.style.display = "none"; }, 4200);
+    };
+
+    function detectRepo() {
+      const host = location.hostname;
+      if (host.endsWith(".github.io")) {
+        const owner = host.split(".")[0];
+        const parts = location.pathname.split("/").filter(Boolean);
+        const repo = parts[0] || `${owner}.github.io`;
+        return { owner, repo };
+      }
+      return { owner: "readbarapp", repo: "credit-card-promotion-bot" };
+    }
+
+    function loadSettings() {
+      const guessed = detectRepo();
+      $("pat").value = localStorage.getItem(KEYS.pat) || "";
+      $("owner").value = localStorage.getItem(KEYS.owner) || guessed.owner;
+      $("repo").value = localStorage.getItem(KEYS.repo) || guessed.repo;
+      $("link-actions").href = `https://github.com/${$("owner").value}/${$("repo").value}/actions/workflows/scrape.yml`;
+    }
+
+    function saveSettings() {
+      localStorage.setItem(KEYS.pat, $("pat").value.trim());
+      localStorage.setItem(KEYS.owner, $("owner").value.trim());
+      localStorage.setItem(KEYS.repo, $("repo").value.trim());
+      $("link-actions").href = `https://github.com/${$("owner").value}/${$("repo").value}/actions/workflows/scrape.yml`;
+    }
+
+    function authHeaders() {
+      const token = ($("pat").value || localStorage.getItem(KEYS.pat) || "").trim();
+      if (!token) throw new Error("請先在管理面板輸入 GitHub PAT");
+      return {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      };
+    }
+
+    function apiBase() {
+      const owner = ($("owner").value || localStorage.getItem(KEYS.owner) || "").trim();
+      const repo = ($("repo").value || localStorage.getItem(KEYS.repo) || "").trim();
+      if (!owner || !repo) throw new Error("請填寫 Owner 與 Repo");
+      return `https://api.github.com/repos/${owner}/${repo}`;
+    }
+
+    async function gh(path, options = {}) {
+      const res = await fetch(`${apiBase()}${path}`, {
+        ...options,
+        headers: { ...authHeaders(), ...(options.headers || {}) },
+      });
+      const text = await res.text();
+      let body = null;
+      try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+      if (!res.ok) {
+        const msg = (body && body.message) || text || res.statusText;
+        throw new Error(`GitHub API ${res.status}: ${msg}`);
+      }
+      return body;
+    }
+
+    function utf8ToB64(str) {
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+    function b64ToUtf8(str) {
+      return decodeURIComponent(escape(atob(str.replace(/\n/g, ""))));
+    }
+
+    function parseBanksJs(source) {
+      const match = source.match(/module\.exports\s*=\s*(\[[\s\S]*\])\s*;?\s*$/);
+      if (!match) throw new Error("無法解析 config/banks.js");
+      return JSON.parse(match[1]);
+    }
+
+    function serializeBanksJs(list) {
+      return `/**\n * 香港銀行與支付平台監測清單（組態驅動）\n * 由 Dashboard「管理監控平台」透過 GitHub Contents API 寫入。\n */\nmodule.exports = ${JSON.stringify(list, null, 2)};\n`;
+    }
+
+    function todayHkt() {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Hong_Kong" }).format(new Date());
+    }
+    function daysUntil(deadline) {
+      if (!deadline || deadline === "額滿即止") return null;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline)) return null;
+      const today = todayHkt();
+      const t = Date.parse(`${today}T00:00:00+08:00`);
+      const d = Date.parse(`${deadline}T00:00:00+08:00`);
+      return Math.round((d - t) / 86400000);
+    }
+
+    function loadChecks() {
+      try { return JSON.parse(localStorage.getItem(KEYS.checks) || "{}"); }
+      catch { return {}; }
+    }
+    function saveChecks(map) {
+      localStorage.setItem(KEYS.checks, JSON.stringify(map));
+    }
+
+    function filteredOffers() {
+      const q = ($("q").value || "").trim().toLowerCase();
+      const bank = $("f-bank").value;
+      const when = $("f-when").value;
+      return (state.data.offers || []).filter((o) => {
+        if (bank && o.bank_id !== bank && o.bank_name !== bank) return false;
+        const left = daysUntil(o.deadline);
+        if (when === "new" && !o.isNew) return false;
+        if (when === "7d" && !(left !== null && left >= 0 && left <= 7)) return false;
+        if (when === "active" && o.status === "expired") return false;
+        if (when === "expired" && o.status !== "expired") return false;
+        if (!q) return true;
+        const blob = [o.title, o.rewards, o.bank_name, ...(o.conditions || [])].join(" ").toLowerCase();
+        return blob.includes(q);
+      });
+    }
+
+    function render() {
+      const offers = state.data.offers || [];
+      const banks = state.data.banks || [];
+      const news = offers.filter((o) => o.isNew && o.status !== "expired");
+      $("new-row").innerHTML = news.length
+        ? news.map((o) => `<article class="chip"><b>${escapeHtml(o.bank_name)}</b>${escapeHtml(o.title)}</article>`).join("")
+        : `<p class="muted">暫時沒有標記為 🆕 New 的優惠。完成首次爬蟲後，新發現會出現在這裡。</p>`;
+
+      const select = $("f-bank");
+      const current = select.value;
+      select.innerHTML = `<option value="">全部平台</option>` + banks.map((b) =>
+        `<option value="${escapeAttr(b.id)}">${escapeHtml(b.name)}</option>`
+      ).join("");
+      select.value = current;
+
+      $("bank-side").innerHTML = banks.length
+        ? `<ol>${banks.map((b) => `<li><a href="${escapeAttr(b.url)}" target="_blank" rel="noopener">${escapeHtml(b.name)}</a></li>`).join("")}</ol>`
+        : "尚未載入。";
+
+      const errors = state.data.errors || [];
+      $("error-side").innerHTML = errors.length
+        ? errors.map((e) => `<p><b>${escapeHtml(e.bank_name || e.bank_id)}</b> (${escapeHtml(e.stage || "")})<br>${escapeHtml(e.error)}</p>`).join("")
+        : "尚無錯誤。";
+
+      const updated = state.data.lastUpdatedHkt
+        ? `最近更新：${state.data.lastUpdatedHkt}（香港時間）`
+        : "尚未執行首次爬蟲。請先設定 PAT 後按「立即執行一次爬蟲」。";
+      $("worker-meta").dataset.updated = updated;
+
+      const list = filteredOffers();
+      $("empty").hidden = list.length > 0;
+      $("cards").innerHTML = list.map(renderCard).join("");
+      $("cards").querySelectorAll("input[type=checkbox]").forEach((box) => {
+        box.addEventListener("change", onCheck);
+      });
+    }
+
+    function renderCard(o) {
+      const left = daysUntil(o.deadline);
+      const hot = left !== null && left >= 0 && left <= 7;
+      const checks = loadChecks()[o.id] || {};
+      const conditions = o.conditions && o.conditions.length
+        ? o.conditions.map((c, i) => `
+            <li>
+              <input type="checkbox" data-id="${escapeAttr(o.id)}" data-i="${i}" ${checks[i] ? "checked" : ""}>
+              <span>${escapeHtml(c)}</span>
+            </li>`).join("")
+        : "<li class='muted'>沒有抽出獨立任務條件。</li>";
+      return `
+        <article class="card offer ${o.status === "expired" ? "expired" : ""}">
+          <div class="badges">
+            <span class="badge bank">${escapeHtml(o.bank_name)}</span>
+            ${o.isNew ? `<span class="badge new">🆕 New</span>` : ""}
+            ${hot ? `<span class="badge hot">🔴 ${left} 天內到期</span>` : ""}
+            ${o.status === "expired" ? `<span class="badge gone">Expired</span>` : ""}
+            ${o.requires_registration === "Yes" ? `<span class="badge">須登記</span>` : ""}
+          </div>
+          <h3>${escapeHtml(o.title)}</h3>
+          <p class="rewards">${escapeHtml(o.rewards || "")}</p>
+          <p class="deadline ${hot ? "hot" : ""}">截止：${escapeHtml(o.deadline || "額滿即止")}${left === 0 ? "（今日到期）" : ""}</p>
+          <a href="${escapeAttr(o.url)}" target="_blank" rel="noopener">查看官網原始連結</a>
+          <details>
+            <summary>任務條件 Checklist</summary>
+            <ul class="checks">${conditions}</ul>
+          </details>
+        </article>`;
+    }
+
+    function onCheck(ev) {
+      const id = ev.target.dataset.id;
+      const i = ev.target.dataset.i;
+      const map = loadChecks();
+      map[id] = map[id] || {};
+      map[id][i] = ev.target.checked;
+      saveChecks(map);
+    }
+
+    function escapeHtml(s) {
+      return String(s || "").replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      }[c]));
+    }
+    function escapeAttr(s) { return escapeHtml(s); }
+
+    function renderBankRows() {
+      $("bank-rows").innerHTML = state.banks.map((b, idx) => `
+        <tr>
+          <td><input data-k="name" data-i="${idx}" value="${escapeAttr(b.name || "")}"></td>
+          <td><input data-k="url" data-i="${idx}" value="${escapeAttr(b.url || "")}"></td>
+          <td class="tiny">
+            <button class="btn-line" type="button" data-edit="${idx}">✏️</button>
+            <button class="btn-danger" type="button" data-del="${idx}">🗑️</button>
+          </td>
+        </tr>`).join("");
+    }
+
+    function syncBankInputs() {
+      $("bank-rows").querySelectorAll("input").forEach((input) => {
+        const i = Number(input.dataset.i);
+        const k = input.dataset.k;
+        if (state.banks[i]) state.banks[i][k] = input.value.trim();
+      });
+    }
+
+    function slugId(name) {
+      const ascii = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      return ascii || `bank-${Date.now().toString(36)}`;
+    }
+
+    async function loadRemoteBanks() {
+      saveSettings();
+      const file = await gh(`/contents/${BANKS_PATH}`);
+      const source = b64ToUtf8(file.content);
+      state.banks = parseBanksJs(source);
+      renderBankRows();
+      toast("已讀取 GitHub 上的監測清單");
+    }
+
+    async function saveRemoteBanks() {
+      syncBankInputs();
+      saveSettings();
+      if (!state.banks.length) throw new Error("清單不能空白");
+      for (const b of state.banks) {
+        if (!b.name || !b.url) throw new Error("每一項都需要名稱與 URL");
+        try { new URL(b.url); } catch { throw new Error(`URL 無效：${b.url}`); }
+        b.enabled = b.enabled !== false;
+        b.id = b.id || slugId(b.nameEn || b.name);
+      }
+      const file = await gh(`/contents/${BANKS_PATH}`);
+      const body = {
+        message: "chore: update monitored banks from dashboard",
+        content: utf8ToB64(serializeBanksJs(state.banks)),
+        sha: file.sha,
+      };
+      await gh(`/contents/${BANKS_PATH}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      toast("已將 config/banks.js commit 到 GitHub");
+    }
+
+    function setWorkerStatus(kind, label, extra) {
+      const pill = $("worker-pill");
+      pill.className = `status-pill ${kind}`.trim();
+      $("worker-label").textContent = label;
+      const updated = $("worker-meta").dataset.updated || "";
+      $("worker-meta").textContent = [extra, updated].filter(Boolean).join(" · ");
+    }
+
+    async function refreshRuns() {
+      try {
+        const data = await gh("/actions/workflows/scrape.yml/runs?per_page=1");
+        const run = data.workflow_runs && data.workflow_runs[0];
+        if (!run) {
+          setWorkerStatus("", "尚未有執行紀錄", "可按「立即執行一次爬蟲」啟動 Worker");
+          return;
+        }
+        state.runId = run.id;
+        const hkt = new Date(run.updated_at).toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false });
+        if (run.status !== "completed") {
+          setWorkerStatus("run", "Worker 執行中", `${run.status} · ${run.html_url}`);
+          $("btn-run").disabled = true;
+        } else if (run.conclusion === "success") {
+          setWorkerStatus("", "最近一次成功", `${hkt} 香港時間`);
+          $("btn-run").disabled = false;
+          stopPolling();
+        } else {
+          setWorkerStatus("fail", `最近一次 ${run.conclusion || "失敗"}`, `${hkt} 香港時間`);
+          $("btn-run").disabled = false;
+          stopPolling();
+        }
+      } catch (err) {
+        setWorkerStatus("fail", "無法讀取 Worker 狀態", err.message);
+      }
+    }
+
+    function startPolling() {
+      stopPolling();
+      refreshRuns();
+      state.pollTimer = setInterval(refreshRuns, 8000);
+    }
+    function stopPolling() {
+      if (state.pollTimer) clearInterval(state.pollTimer);
+      state.pollTimer = null;
+    }
+
+    async function triggerRun() {
+      saveSettings();
+      await gh("/dispatches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_type: "scrape" }),
+      });
+      toast("已向 GitHub 發送 repository_dispatch，Worker 即將啟動");
+      setWorkerStatus("run", "已發出啟動指令", "正在等待 Actions 接單…");
+      $("btn-run").disabled = true;
+      setTimeout(startPolling, 1500);
+    }
+
+    async function stopRun() {
+      saveSettings();
+      if (!state.runId) await refreshRuns();
+      if (!state.runId) throw new Error("沒有可終止的執行");
+      await gh(`/actions/runs/${state.runId}/cancel`, { method: "POST" });
+      toast("已要求終止目前的 GitHub Actions Worker");
+      startPolling();
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch(`data.json?t=${Date.now()}`, { cache: "no-store" });
+        if (res.ok) return await res.json();
+      } catch { /* 使用嵌入資料 */ }
+      return JSON.parse($("embedded-data").textContent || "{}");
+    }
+
+    function bind() {
+      $("q").addEventListener("input", render);
+      $("f-bank").addEventListener("change", render);
+      $("f-when").addEventListener("change", render);
+      $("btn-admin").addEventListener("click", () => { loadSettings(); $("admin").showModal(); });
+      $("btn-howto").addEventListener("click", () => $("howto").scrollIntoView({ behavior: "smooth" }));
+      $("btn-close").addEventListener("click", () => $("admin").close());
+      $("btn-save-token").addEventListener("click", () => { saveSettings(); toast("已儲存在 LocalStorage"); });
+      $("btn-load-banks").addEventListener("click", () => loadRemoteBanks().catch((e) => toast(e.message)));
+      $("btn-add-bank").addEventListener("click", () => {
+        const name = $("new-name").value.trim();
+        const url = $("new-url").value.trim();
+        if (!name || !url) return toast("請輸入名稱與 URL");
+        state.banks.push({ id: slugId(name), name, nameEn: name, url, enabled: true });
+        $("new-name").value = "";
+        $("new-url").value = "";
+        renderBankRows();
+      });
+      $("bank-rows").addEventListener("click", (ev) => {
+        const del = ev.target.closest("[data-del]");
+        const edit = ev.target.closest("[data-edit]");
+        syncBankInputs();
+        if (del) {
+          state.banks.splice(Number(del.dataset.del), 1);
+          renderBankRows();
+        }
+        if (edit) {
+          const b = state.banks[Number(edit.dataset.edit)];
+          $("new-name").value = b.name;
+          $("new-url").value = b.url;
+        }
+      });
+      $("btn-save-github").addEventListener("click", () => {
+        saveRemoteBanks().catch((e) => toast(e.message));
+      });
+      $("btn-run").addEventListener("click", () => {
+        triggerRun().catch((e) => toast(e.message));
+      });
+      $("btn-stop").addEventListener("click", () => {
+        stopRun().catch((e) => toast(e.message));
+      });
+      document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape") $("admin").close();
+      });
+    }
+
+    (async function init() {
+      loadSettings();
+      bind();
+      state.data = await loadData();
+      state.banks = (state.data.banks || []).map((b) => ({ ...b }));
+      renderBankRows();
+      render();
+      if (localStorage.getItem(KEYS.pat)) startPolling();
+      else setWorkerStatus("", "控制台待命", $("worker-meta").dataset.updated);
+    })();
+  </script>
+</body>
+</html>

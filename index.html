@@ -307,6 +307,7 @@
       data: { offers: [], banks: [], errors: [] },
       banks: [],
       runId: null,
+      runStatus: null,
       pollTimer: null,
     };
 
@@ -455,10 +456,7 @@
         ? errors.map((e) => `<p><b>${escapeHtml(e.bank_name || e.bank_id)}</b> (${escapeHtml(e.stage || "")})<br>${escapeHtml(e.error)}</p>`).join("")
         : "尚無錯誤。";
 
-      const updated = state.data.lastUpdatedHkt
-        ? `最近更新：${state.data.lastUpdatedHkt}（香港時間）`
-        : "尚未執行首次爬蟲。請先設定 PAT 後按「立即執行一次爬蟲」。";
-      $("worker-meta").dataset.updated = updated;
+      $("worker-meta").dataset.updated = dataStatusText();
 
       const list = filteredOffers();
       $("empty").hidden = list.length > 0;
@@ -580,12 +578,39 @@
       toast("已將 config/banks.js commit 到 GitHub");
     }
 
-    function setWorkerStatus(kind, label, extra) {
-      const pill = $("worker-pill");
-      pill.className = `status-pill ${kind}`.trim();
+    function hasPat() {
+      return !!(localStorage.getItem(KEYS.pat) || ($("pat") && $("pat").value.trim()));
+    }
+
+    function dataStatusText() {
+      if (state.data.lastUpdatedHkt) {
+        return `資料最近更新：${state.data.lastUpdatedHkt}（香港時間）`;
+      }
+      if (hasPat()) {
+        return "PAT 已儲存。第一次爬蟲完成並寫入 data.json 後，優惠就會出現。";
+      }
+      return "請先在管理面板儲存 PAT，再按「立即執行一次爬蟲」。";
+    }
+
+    function runLink(run) {
+      if (!run || !run.html_url) return "";
+      return `<a href="${escapeAttr(run.html_url)}" target="_blank" rel="noopener">查看執行紀錄</a>`;
+    }
+
+    function setWorkerStatus(kind, label, extraHtml) {
+      $("worker-pill").className = `status-pill ${kind}`.trim();
       $("worker-label").textContent = label;
-      const updated = $("worker-meta").dataset.updated || "";
-      $("worker-meta").textContent = [extra, updated].filter(Boolean).join(" · ");
+      const bits = [];
+      if (extraHtml) bits.push(extraHtml);
+      if (kind !== "run") bits.push(dataStatusText());
+      $("worker-meta").innerHTML = bits.filter(Boolean).join(" · ");
+    }
+
+    async function reloadDashboard() {
+      state.data = await loadData();
+      state.banks = (state.data.banks || []).map((b) => ({ ...b }));
+      renderBankRows();
+      render();
     }
 
     async function refreshRuns() {
@@ -599,19 +624,31 @@
         state.runId = run.id;
         const hkt = new Date(run.updated_at).toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false });
         if (run.status !== "completed") {
-          setWorkerStatus("run", "Worker 執行中", `${run.status} · ${run.html_url}`);
+          state.runStatus = run.status;
+          setWorkerStatus(
+            "run",
+            "Worker 執行中",
+            `爬蟲進行中，完成後會自動寫入優惠。${runLink(run)}`,
+          );
           $("btn-run").disabled = true;
         } else if (run.conclusion === "success") {
-          setWorkerStatus("", "最近一次成功", `${hkt} 香港時間`);
+          const justFinished = $("btn-run").disabled || state.runStatus === "in_progress" || state.runStatus === "queued";
+          state.runStatus = "success";
           $("btn-run").disabled = false;
           stopPolling();
+          if (justFinished) {
+            await reloadDashboard();
+            toast("爬蟲完成。若未見到新優惠，請再重新整理頁面（GitHub Pages 可能有短暫快取）。");
+          }
+          setWorkerStatus("", "最近一次成功", `${hkt} 香港時間`);
         } else {
-          setWorkerStatus("fail", `最近一次 ${run.conclusion || "失敗"}`, `${hkt} 香港時間`);
+          state.runStatus = run.conclusion || "failure";
+          setWorkerStatus("fail", `最近一次 ${run.conclusion || "失敗"}`, `${hkt} 香港時間 · ${runLink(run)}`);
           $("btn-run").disabled = false;
           stopPolling();
         }
       } catch (err) {
-        setWorkerStatus("fail", "無法讀取 Worker 狀態", err.message);
+        setWorkerStatus("fail", "無法讀取 Worker 狀態", escapeHtml(err.message));
       }
     }
 
@@ -632,8 +669,9 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ event_type: "scrape" }),
       });
-      toast("已向 GitHub 發送 repository_dispatch，Worker 即將啟動");
-      setWorkerStatus("run", "已發出啟動指令", "正在等待 Actions 接單…");
+      toast("PAT 有效，已向 GitHub 發送啟動指令");
+      state.runStatus = "queued";
+      setWorkerStatus("run", "已發出啟動指令", "PAT 已確認。正在等待 Actions 接單…");
       $("btn-run").disabled = true;
       setTimeout(startPolling, 1500);
     }
@@ -708,8 +746,8 @@
       state.banks = (state.data.banks || []).map((b) => ({ ...b }));
       renderBankRows();
       render();
-      if (localStorage.getItem(KEYS.pat)) startPolling();
-      else setWorkerStatus("", "控制台待命", $("worker-meta").dataset.updated);
+      if (hasPat()) startPolling();
+      else setWorkerStatus("", "控制台待命", dataStatusText());
     })();
   </script>
 </body>

@@ -430,7 +430,7 @@
       return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Hong_Kong" }).format(new Date());
     }
     function daysUntil(deadline) {
-      if (!deadline || deadline === "額滿即止") return null;
+      if (!deadline || deadline === "額滿即止" || deadline === "未註明" || deadline === "先到先得") return null;
       if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline)) return null;
       const today = todayHkt();
       const t = Date.parse(`${today}T00:00:00+08:00`);
@@ -533,7 +533,7 @@
           <td class="cell-rewards">${escapeHtml(o.rewards || "")}</td>
           <td class="cell-conditions"><ul class="checks">${conditions}</ul></td>
           <td>${escapeHtml(registration)}</td>
-          <td class="deadline ${hot ? "hot" : ""}">${escapeHtml(o.deadline || "額滿即止")}${hot ? `<div class="badge hot">🔴 ${left} 天內到期</div>` : ""}</td>
+          <td class="deadline ${hot ? "hot" : ""}">${escapeHtml(o.deadline || "未註明")}${hot ? `<div class="badge hot">🔴 ${left} 天內到期</div>` : ""}</td>
           <td class="cell-url"><a href="${escapeAttr(o.url)}" target="_blank" rel="noopener">${escapeHtml(o.url)}</a></td>
         </tr>`;
     }

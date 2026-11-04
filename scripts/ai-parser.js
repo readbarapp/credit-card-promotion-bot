@@ -71,12 +71,21 @@ const RESPONSE_SCHEMA = {
   required: ["offers"],
 };
 
+const UNKNOWN_DEADLINE = "未註明";
+
 const SKIP_HREF_RE =
   /^(javascript:|mailto:|tel:|sms:|#)/i;
 const SKIP_PATH_RE =
-  /login|signin|privacy|cookie|terms|career|recruit|accessibility|facebook|instagram|youtube|linkedin|twitter|weibo/i;
+  /login|signin|privacy|cookie|terms|career|recruit|accessibility|facebook|instagram|youtube|linkedin|twitter|weibo|whatsapp|wa\.me|\/security\?/i;
+const SOCIAL_URL_RE =
+  /whatsapp|wa\.me|facebook\.com\/sharer|twitter\.com\/intent|x\.com\/intent|linkedin\.com\/share|t\.me\//i;
+const LISTING_URL_RE =
+  /\/personal\/offers\/?$|\/credit-card-hot-promotions\.html|\/latest-offers\/?$/i;
 const JUNK_TITLE_RE =
-  /skip to (content|main)|個人e-?banking|查看全部|了解更多|^home$|^首頁$|^登入$|^搜尋$|^(invest|insure|spend|save)$|cookie settings|privacy policy/i;
+  /skip to (content|main)|個人e-?banking|查看全部|了解更多|^home$|^首頁$|^登入$|^搜尋$|^(invest|insure|spend|save)$|cookie settings|privacy policy|whatsapp|在 WhatsApp 上分享|^用戶名稱$|同 H A R O 輕鬆/i;
+const FAQ_CONDITION_RE =
+  /嗎[？?]|甚麼是|什麼是|你需要注意|以上案例|只供參考|金融糾紛|不保事項|貸款計算機|結果只供參考|分享到|點擊這裡|立即申請|立即登記|查看更多|前往保安|定義見/;
+const BEA_HUB_TAGS = /^(餐飲優惠|購物優惠|旅遊優惠|娛樂優惠|奬賞及消費優惠)$/;
 
 let lastAiAt = 0;
 let aiCallsThisRun = 0;
@@ -95,7 +104,7 @@ function hongKongDateStr(date = hongKongNow()) {
 }
 
 function daysUntil(deadline) {
-  if (!deadline || deadline === "額滿即止") return null;
+  if (!deadline || deadline === "額滿即止" || deadline === UNKNOWN_DEADLINE || deadline === "先到先得") return null;
   const m = String(deadline).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
   const target = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00+08:00`);
@@ -127,11 +136,51 @@ function isHttpUrl(value) {
   }
 }
 
-function canonicalizeUrl(href) {
+function unwrapOfferUrl(href) {
+  const raw = String(href || "").trim();
+  if (!raw) return "";
+  try {
+    const u = new URL(raw);
+    if (SOCIAL_URL_RE.test(`${u.hostname}${u.pathname}?${u.search}`)) {
+      const blob = `${u.searchParams.get("text") || ""} ${u.searchParams.get("u") || ""} ${u.searchParams.get("url") || ""}`;
+      const decoded = decodeURIComponent(blob);
+      const found = decoded.match(/https?:\/\/(?:www\.)?(?:hangseng|hkbea|hsbc|bochk|sc|mox|alipayhk)\.[^\s"'<>]+/i)
+        || decoded.match(/https?:\/\/[^\s"'<>]+/i);
+      if (!found) return "";
+      return unwrapOfferUrl(found[0].replace(/[:.,;]+$/, ""));
+    }
+  } catch {
+    /* keep going */
+  }
+  return raw
+    .replace(/:social:.*$/i, "")
+    .replace(/\$\{media\}/g, "")
+    .replace(/&amp;/g, "&");
+}
+
+function isBadOfferUrl(href) {
+  const value = String(href || "");
+  if (!value || SKIP_HREF_RE.test(value)) return true;
+  if (SOCIAL_URL_RE.test(value)) return true;
+  if (SKIP_PATH_RE.test(value)) return true;
+  if (/\/security\?/i.test(value)) return true;
+  return false;
+}
+
+function isListingUrl(href) {
   try {
     const u = new URL(href);
+    return LISTING_URL_RE.test(`${u.pathname}${u.search}`);
+  } catch {
+    return LISTING_URL_RE.test(String(href || ""));
+  }
+}
+
+function canonicalizeUrl(href) {
+  try {
+    const u = new URL(unwrapOfferUrl(href) || href);
     u.hash = "";
-    ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid"].forEach(
+    ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid", "cid"].forEach(
       (k) => u.searchParams.delete(k),
     );
     return u.toString();
@@ -152,9 +201,9 @@ function filterHarvestedLinks(links, listingUrl) {
 
   return (links || [])
     .map((item) => {
-      const href = typeof item === "string" ? item : item.href;
+      const href = unwrapOfferUrl(typeof item === "string" ? item : item.href);
       const text = typeof item === "string" ? "" : item.text || "";
-      if (!href || SKIP_HREF_RE.test(href)) return null;
+      if (!href || SKIP_HREF_RE.test(href) || isBadOfferUrl(href)) return null;
       if (!isHttpUrl(href)) return null;
       if (SKIP_PATH_RE.test(href)) return null;
       const canonical = canonicalizeUrl(href);
@@ -173,20 +222,38 @@ function filterHarvestedLinks(links, listingUrl) {
 }
 
 function pickAllowedUrl(candidate, harvested, listingUrl) {
-  const allowed = new Set(harvested.map((l) => canonicalizeUrl(l.href)));
-  allowed.add(canonicalizeUrl(listingUrl));
+  const cleanedCandidate = unwrapOfferUrl(candidate || "");
+  const fallback = unwrapOfferUrl(listingUrl || "");
+  const allowed = harvested
+    .map((l) => unwrapOfferUrl(l.href))
+    .filter((href) => href && isHttpUrl(href) && !isBadOfferUrl(href));
 
-  if (candidate && isHttpUrl(candidate)) {
-    const canonical = canonicalizeUrl(candidate);
-    if (allowed.has(canonical)) return canonical;
-    const match = harvested.find(
-      (l) =>
-        canonical.startsWith(l.href) ||
-        l.href.startsWith(canonical) ||
-        l.href.split("?")[0] === canonical.split("?")[0],
+  const score = (href) => {
+    if (!href || !isHttpUrl(href) || isBadOfferUrl(href)) return -1;
+    if (isListingUrl(href)) return 1;
+    return 3;
+  };
+
+  if (cleanedCandidate && isHttpUrl(cleanedCandidate) && !isBadOfferUrl(cleanedCandidate)) {
+    const canonical = canonicalizeUrl(cleanedCandidate);
+    if (allowed.some((href) => canonicalizeUrl(href) === canonical)) return canonical;
+    const match = allowed.find(
+      (href) =>
+        canonical.split("?")[0] === canonicalizeUrl(href).split("?")[0],
     );
-    if (match) return match.href;
+    if (match) return canonicalizeUrl(match);
+    if (score(cleanedCandidate) >= 3) return canonical;
   }
+
+  const bestHarvested = allowed
+    .map((href) => ({ href: canonicalizeUrl(href), score: score(href) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)[0];
+  if (fallback && !isBadOfferUrl(fallback) && !isListingUrl(fallback)) {
+    return canonicalizeUrl(fallback);
+  }
+  if (bestHarvested && bestHarvested.score >= 3) return bestHarvested.href;
+  if (fallback && isHttpUrl(fallback) && !isBadOfferUrl(fallback)) return canonicalizeUrl(fallback);
   return canonicalizeUrl(listingUrl);
 }
 
@@ -215,45 +282,65 @@ async function pacedCall(fn) {
   return fn();
 }
 
+function ymd(year, month, day) {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function deadlineFromCountdown(text, today = hongKongDateStr()) {
+  const m = String(text || "").match(/(\d+)\s*天/);
+  if (!m) return "";
+  const days = Number(m[1]);
+  if (!Number.isFinite(days) || days < 0 || days > 400) return "";
+  const [y, mo, d] = today.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, mo - 1, d + days));
+  return ymd(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+}
+
 function normalizeDeadline(raw) {
-  if (!raw) return "額滿即止";
+  if (!raw) return UNKNOWN_DEADLINE;
   const text = String(raw).trim();
-  if (/額滿即止|先到先得|while stocks last|until further notice|直至另行通知/i.test(text)) {
-    return "額滿即止";
-  }
+  if (/未註明|未注明|見官網|不詳|unknown/i.test(text)) return UNKNOWN_DEADLINE;
+  if (/額滿即止/.test(text)) return "額滿即止";
+  if (/先到先得/.test(text)) return "先到先得";
   const iso = text.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const cn = text.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
-  if (cn) {
-    return `${cn[1]}-${String(cn[2]).padStart(2, "0")}-${String(cn[3]).padStart(2, "0")}`;
-  }
+  if (cn) return ymd(cn[1], cn[2], cn[3]);
   const slash = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (slash) {
-    return `${slash[3]}-${String(slash[2]).padStart(2, "0")}-${String(slash[1]).padStart(2, "0")}`;
-  }
-  return "額滿即止";
+  if (slash) return ymd(slash[3], slash[2], slash[1]);
+  return UNKNOWN_DEADLINE;
 }
 
 function extractDeadlineFromText(text) {
   const t = String(text || "");
-  const yearNow = hongKongNow().getFullYear();
-  const found = [];
-  const re =
-    /(?:截止日期|截止日|有效期至|有效直至|有效期|推廣期至|推廣直至|推廣期|優惠期至|優惠期|直至|到期日|到期)?[^\d]{0,12}(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/g;
-  let m;
-  while ((m = re.exec(t))) {
-    const y = Number(m[1]);
-    if (y < yearNow - 1 || y > yearNow + 3) continue;
-    found.push({
-      value: `${y}-${String(m[2]).padStart(2, "0")}-${String(m[3]).padStart(2, "0")}`,
-      labeled: /截止|有效|推廣|優惠|直至|到期/.test(m[0]),
-    });
+  if (!t.trim()) return UNKNOWN_DEADLINE;
+
+  const range = [
+    ...t.matchAll(
+      /由\s*(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日.{0,12}至\s*(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/g,
+    ),
+  ];
+  if (range.length) {
+    const last = range[range.length - 1];
+    return ymd(last[4], last[5], last[6]);
   }
-  const iso = t.match(/(?:截止|有效|推廣|直至)[^\d]{0,12}(\d{4})-(\d{2})-(\d{2})/);
+
+  const before = [
+    ...t.matchAll(
+      /(?:於|在|直至|截止|有效至|推廣期至|優惠期至|或之前)[^\d]{0,10}(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日(?:或之前)?/g,
+    ),
+  ];
+  if (before.length) {
+    const last = before[before.length - 1];
+    return ymd(last[1], last[2], last[3]);
+  }
+
+  const iso = t.match(/(?:截止|有效至|推廣期至|直至|或之前)[^\d]{0,12}(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  const labeled = found.filter((x) => x.labeled);
-  const pick = (labeled.length ? labeled : found).pop();
-  return pick ? pick.value : "額滿即止";
+
+  if (/額滿即止/.test(t)) return "額滿即止";
+  if (/先到先得/.test(t)) return "先到先得";
+  return UNKNOWN_DEADLINE;
 }
 
 function extractRewardsFromText(text, title = "") {
@@ -273,21 +360,68 @@ function extractRewardsFromText(text, title = "") {
 }
 
 function extractConditionsFromText(text, skipLines = []) {
-  const lines = String(text || "")
-    .split(/\n+/)
+  const chunks = String(text || "")
+    .split(/\n+|[。；;]/)
     .map((s) => s.replace(/\s+/g, " ").trim());
   const skipExact = new Set(skipLines.filter(Boolean));
   const hits = [];
   const re =
-    /須|需|必須|登記|報名|註冊|簽賬|消費|滿\s*HK|指定|持有.{0,12}卡|合資格|於\s*\d|最少|不得少於|不包括|經.{0,8}App|於推廣期|成功登記|不可|不得/;
+    /須|需|必須|登記|報名|註冊|申請|投保|簽賬|消費|滿\s*HK|指定|持有.{0,12}卡|合資格|優惠碼|於推廣期|成功登記|完成指定|不包括|經.{0,8}App|不得/;
   const skip = /cookie|javascript|skip to|版權|copyright|關注我們|分享到/i;
-  for (const line of lines) {
+  for (const line of chunks) {
     if (line.length < 8 || line.length > 180) continue;
-    if (skipExact.has(line) || skip.test(line) || isJunkTitle(line)) continue;
-    if (re.test(line)) hits.push(line);
-    if (hits.length >= 10) break;
+    if (skipExact.has(line) || skip.test(line) || FAQ_CONDITION_RE.test(line) || isJunkTitle(line)) continue;
+    if (re.test(line)) hits.push(line.replace(/^[•·\-、\d.\s]+/, "").trim());
+    if (hits.length >= 8) break;
   }
   return uniq(hits);
+}
+
+function extractMerchantNames(text) {
+  const lines = String(text || "")
+    .split(/\n+/)
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const names = [];
+  for (const line of lines) {
+    if (line.length < 2 || line.length > 24) continue;
+    if (/優惠|條款|細則|信用卡|東亞|登記|熱線|客戶服務|按此|詳情/.test(line)) continue;
+    if (/^[A-Za-z0-9&.' +\-／/()\u4e00-\u9fff]+$/.test(line) && /[A-Za-z\u4e00-\u9fff]/.test(line)) {
+      names.push(line);
+    }
+    if (names.length >= 16) break;
+  }
+  return uniq(names);
+}
+
+function isBeaMerchantHub(section) {
+  const tag = String(section && section.category || "");
+  const url = String(section && section.url || "");
+  if (!BEA_HUB_TAGS.test(tag)) return false;
+  if (/welcome-offer|cash-in-hand|cashadvance|entertainment-offer-20|gigi|sammi|concert/i.test(url)) {
+    return false;
+  }
+  return /yro|dining-offer|shopping-offer|travel-offer|rewards-and-spending/i.test(url);
+}
+
+function extractBeaHubOffer(bank, section) {
+  const title = String(section.category || "").trim() || titleFromSection(section);
+  const merchants = extractMerchantNames(section.text);
+  const rewards = merchants.length
+    ? `指定合作商戶折扣，包括：${merchants.slice(0, 12).join("、")}${merchants.length > 12 ? " 等" : ""}。個別折扣以官網為準。`
+    : "指定合作商戶折扣；因商戶眾多、折扣及有效期各有不同，獎賞詳情以官網優惠圖／商戶名單為準。";
+  return {
+    bank_name: bank.name,
+    title,
+    rewards,
+    conditions: [
+      "以指定東亞信用卡於指定合作商戶消費",
+      "個別商戶折扣、最低消費及有效期各有不同，以官網及商戶公布為準",
+    ],
+    requires_registration: detectRegistration(section.text),
+    deadline: extractDeadlineFromText(section.text),
+    url: section.url || bank.url,
+  };
 }
 
 function titleFromSection(section) {
@@ -312,17 +446,30 @@ function detectRegistration(text) {
 }
 
 function extractFromSectionText(bank, section) {
-  const title = titleFromSection(section);
+  if (isBeaMerchantHub(section)) return extractBeaHubOffer(bank, section);
+  const listingTitle = String(section.listingTitle || "").replace(/\s+/g, " ").trim();
+  const listingDesc = String(section.listingDescription || "").replace(/\s+/g, " ").trim();
+  const title = (!isJunkTitle(listingTitle) && listingTitle) || titleFromSection(section);
   if (!title || isJunkTitle(title)) return null;
-  const text = section.text || "";
-  const rewards = extractRewardsFromText(text, title) || title;
+  const text = [listingDesc, section.text || ""].filter(Boolean).join("\n");
+  const rewards = listingDesc && listingDesc !== title
+    ? listingDesc.slice(0, 500)
+    : extractRewardsFromText(text, title) || title;
+  let conditions = extractConditionsFromText(text, [title, rewards]);
+  if (!conditions.length && listingDesc) {
+    conditions = extractConditionsFromText(listingDesc, [title]);
+  }
+  const fromText = extractDeadlineFromText(text);
+  const deadline = fromText !== UNKNOWN_DEADLINE
+    ? fromText
+    : normalizeDeadline(section.listingDeadline || UNKNOWN_DEADLINE);
   return {
     bank_name: bank.name,
     title,
     rewards,
-    conditions: extractConditionsFromText(text, [title, rewards]),
+    conditions,
     requires_registration: detectRegistration(text),
-    deadline: extractDeadlineFromText(text),
+    deadline,
     url: section.url || bank.url,
   };
 }
@@ -340,11 +487,11 @@ function buildPrompt(bank, scrapeResult, harvested, maxChars = 14000, maxLinks =
 
 【硬性規則】
 1. url 欄位必須是下列「已抓取超連結」清單中的原始 href 之一。若找不到對應連結，使用總覽頁 URL。禁止發明、改寫或拼接未出現的網址。
-2. 忽略登入、私隱政策、Cookie、招聘、Skip to content、語言切換、純品牌介紹、沒有實際獎賞的一般產品頁。
+2. 忽略登入、私隱政策、Cookie、招聘、Skip to content、語言切換、WhatsApp／Facebook 分享連結、純品牌介紹。url 禁止用 api.whatsapp.com 或總覽頁。
 3. 最多抽出 10 個最重要、具時效或明確獎賞的優惠。每一則都要獨立分析，不要只抄標題。
 4. requires_registration 只能是 "Yes" 或 "No"。若文中提到須登記／報名／註冊，填 Yes。
-5. deadline 用 YYYY-MM-DD；若沒有明確日期或寫額滿即止／先到先得，填 "額滿即止"。
-6. conditions 必須從條款抽出持卡人要完成的任務（指定信用卡、最低簽賬、指定商戶、須於 App 登記、推廣期內消費）。有編號或項目符號就逐條放入陣列。沒有明確任務才給空陣列。禁止把導航文字放進 conditions。
+5. deadline 用 YYYY-MM-DD。只有官網寫「額滿即止」才填 "額滿即止"；寫「先到先得」就填 "先到先得"。找不到明確截止日期就填 "未註明"，禁止把開始日期、倒數「剩餘 N 天」、或估出來的額滿當作截止。
+6. conditions 必須從條款抽出持卡人要完成的獨立任務（指定信用卡、最低簽賬、指定商戶、須於 App 登記、推廣期內消費）。有編號或項目符號就逐條放入陣列。禁止 FAQ、案例、免責、分享按鈕。沒有明確任務才給空陣列。
 7. rewards 用一句話說明獎賞（現金回贈、里數、折扣、禮品等），不要只重複 title。
 8. title 精煉，不要整段條款。
 9. bank_name 固定為「${bank.name}」。
@@ -364,23 +511,35 @@ function buildSectionPrompt(bank, section, harvested, maxChars = 9000) {
     .slice(0, 20)
     .map((l, i) => `${i + 1}. ${l.href}${l.text ? `  |  ${l.text}` : ""}`)
     .join("\n");
+  const listingHint = [
+    section.category ? `分類／下拉類型：${section.category}` : "",
+    section.listingTitle ? `總覽卡標題：${section.listingTitle}` : "",
+    section.listingDescription ? `總覽卡簡介：${section.listingDescription}` : "",
+  ].filter(Boolean).join("\n");
+  const hubHint = isBeaMerchantHub(section)
+    ? `此頁是「${section.category}」全年合作商戶折扣總覽。title 必須用分類名「${section.category}」。rewards 用一句概括指定商戶折扣，不要把每個商戶拆成獨立優惠。conditions 只寫共通任務（指定信用卡、指定商戶消費），不要虛構統一截止日期。`
+    : bank.id === "hangseng"
+      ? "conditions 只抽持卡人要做的獨立任務，忽略 FAQ（嗎？）、案例、免責、計算機說明。url 必須是本頁，禁止 WhatsApp 分享連結。"
+      : "";
 
   return `你是香港銀行／支付平台優惠資訊抽取器。以下是「單一優惠詳情頁」的純文字，請分析這一頁。
 
 平台名稱：${bank.name}
 本頁 URL：${section.url}
+${listingHint}
 
 【硬性規則】
 1. 若本頁只描述一個推廣，offers 只放 1 則。若本頁列出多個獨立推廣，最多 6 則。
 2. 每一則必須填齊：bank_name, title, rewards, conditions, requires_registration, deadline, url。
 3. bank_name 固定為「${bank.name}」。
-4. url 必須是本頁 URL（${section.url}）或下列已抓取超連結之一。禁止發明網址。
+4. url 必須是本頁 URL（${section.url}）。禁止 WhatsApp／社交分享連結，禁止改用總覽頁。
 5. rewards 說明實際獎賞，不要只抄標題。
-6. conditions 必須從條款抽出任務條件陣列（登記、指定卡、最低簽賬、指定商戶、日期限制）。有項目符號就逐條列出。
+6. conditions 必須是獨立任務條件陣列（登記、指定卡、最低簽賬、指定商戶、優惠碼）。禁止 FAQ、案例、免責聲明。
 7. requires_registration 只能 Yes 或 No。
-8. deadline 用 YYYY-MM-DD 或 "額滿即止"。
+8. deadline 用 YYYY-MM-DD；只有官網寫額滿即止才填 "額滿即止"；否則無日期就填 "未註明"。不要把開始日期當成截止。
 9. 忽略 Skip to content、導航、語言切換、私隱政策。
-10. 只輸出 JSON：{"offers":[...]}。
+10. ${hubHint || "只輸出這一頁的優惠。"}
+11. 只輸出 JSON：{"offers":[...]}。
 
 【已抓取超連結】
 ${linkLines || "(無)"}
@@ -625,8 +784,9 @@ function buildVisionPrompt(bank, section) {
 5. rewards 說明實際獎賞。
 6. conditions 從圖中條款抽出任務條件陣列。
 7. requires_registration 只能 Yes 或 No。
-8. deadline 用 YYYY-MM-DD 或 "額滿即止"。
-9. 只輸出 JSON：{"offers":[...]}。`;
+8. deadline 用 YYYY-MM-DD；只有圖中寫額滿即止才填 "額滿即止"；無日期填 "未註明"。
+9. 若圖中是多個合作商戶折扣總覽，title 用分類名「${section.category || "指定商戶優惠"}」，rewards 概括商戶折扣，不要拆成多則又冇任務條件的優惠。
+10. 只輸出 JSON：{"offers":[...]}。`;
 }
 
 function parseJsonPayload(text) {
@@ -651,24 +811,58 @@ function toOffers(bank, items, harvested, scrapeResult) {
         harvested,
         scrapeResult.finalUrl || bank.url,
       );
+      if (isBadOfferUrl(url) || isJunkTitle(title)) return null;
       const registration = /yes|是|須|需要/i.test(String(item.requires_registration || ""))
         ? "Yes"
         : "No";
       const rewards = String(item.rewards || title).replace(/\s+/g, " ").trim().slice(0, 500);
+      const conditions = Array.isArray(item.conditions)
+        ? uniq(
+            item.conditions
+              .map((c) => String(c).trim())
+              .filter((c) => c && c.length <= 180 && !FAQ_CONDITION_RE.test(c) && !isJunkTitle(c)),
+          ).slice(0, 8)
+        : [];
       return {
         id: offerId(bank.name, title),
         bank_id: bank.id,
         bank_name: bank.name,
         title,
         rewards: rewards || title,
-        conditions: Array.isArray(item.conditions)
-          ? item.conditions.map((c) => String(c).trim()).filter(Boolean).slice(0, 12)
-          : [],
+        conditions,
         requires_registration: registration,
         deadline,
         url,
       };
-    });
+    })
+    .filter(Boolean);
+}
+
+function preferListingMeta(section, offers) {
+  if (!section || !Array.isArray(offers)) return offers;
+  return offers.map((offer) => {
+    const next = { ...offer };
+    if (section.listingTitle && !isJunkTitle(section.listingTitle)) {
+      next.title = section.listingTitle;
+    }
+    if (section.listingDescription && (!next.rewards || next.rewards === next.title || next.rewards.length < 10)) {
+      next.rewards = String(section.listingDescription).replace(/\s+/g, " ").trim().slice(0, 500);
+    }
+    if ((!next.conditions || !next.conditions.length) && section.listingDescription) {
+      next.conditions = extractConditionsFromText(section.listingDescription, [next.title, next.rewards]);
+    }
+    if ((!next.deadline || next.deadline === UNKNOWN_DEADLINE) && section.listingDeadline) {
+      next.deadline = normalizeDeadline(section.listingDeadline);
+    }
+    if (isBeaMerchantHub(section)) {
+      const hub = extractBeaHubOffer({ name: next.bank_name, url: section.url }, section);
+      next.title = hub.title;
+      if (!next.rewards || next.rewards === next.title) next.rewards = hub.rewards;
+      if (!next.conditions.length) next.conditions = hub.conditions;
+    }
+    next.id = offerId(next.bank_name, next.title);
+    return next;
+  });
 }
 
 function harvestWindow(sectionText, needle) {
@@ -761,7 +955,7 @@ function extractOffersHeuristic(bank, scrapeResult, harvested) {
         rewards: text,
         conditions: [],
         requires_registration: detectRegistration(text),
-        deadline: "額滿即止",
+        deadline: UNKNOWN_DEADLINE,
         url: link.href,
       });
       if (items.length >= 10) break;
@@ -917,7 +1111,7 @@ async function extractOffersWithAi(bank, scrapeResult) {
           const visionOffers = await extractFromOfferImages(bank, section, harvested);
           if (visionOffers.length) {
             usedAi = true;
-            pushUniqueOffers(collected, seen, visionOffers);
+            pushUniqueOffers(collected, seen, preferListingMeta(section, visionOffers));
             continue;
           }
         } catch (err) {
@@ -945,7 +1139,7 @@ async function extractOffersWithAi(bank, scrapeResult) {
         );
         if (offers.length) {
           usedAi = true;
-          pushUniqueOffers(collected, seen, offers);
+          pushUniqueOffers(collected, seen, preferListingMeta(section, offers));
           continue;
         }
       } catch (err) {
@@ -955,11 +1149,14 @@ async function extractOffersWithAi(bank, scrapeResult) {
       pushUniqueOffers(
         collected,
         seen,
-        toOffers(
-          bank,
-          [extractFromSectionText(bank, section)].filter(Boolean),
-          harvested,
-          { finalUrl: section.url || bank.url },
+        preferListingMeta(
+          section,
+          toOffers(
+            bank,
+            [extractFromSectionText(bank, section)].filter(Boolean),
+            harvested,
+            { finalUrl: section.url || bank.url },
+          ),
         ),
       );
     }
@@ -1049,6 +1246,7 @@ function mergeOffers({ previous = {}, incomingByBank, errors, banks }) {
     for (const old of prevOffers.filter((o) => o.bank_id === bank.id)) {
       if (seenIds.has(old.id)) continue;
       if (String(old.id).startsWith("demo-") && incoming.length) continue;
+      if (isJunkTitle(old.title) || isBadOfferUrl(old.url || "") || isListingUrl(old.url || "")) continue;
       next.push({
         ...old,
         isNew: false,
@@ -1056,12 +1254,6 @@ function mergeOffers({ previous = {}, incomingByBank, errors, banks }) {
         expiredDate: old.expiredDate || today,
       });
       seenIds.add(old.id);
-    }
-  }
-
-  for (const old of prevOffers) {
-    if (!seenIds.has(old.id)) {
-      next.push({ ...old, isNew: false, status: old.status || "expired" });
     }
   }
 
@@ -1258,8 +1450,15 @@ module.exports = {
   daysUntil,
   hongKongDateStr,
   isJunkTitle,
+  unwrapOfferUrl,
+  isBadOfferUrl,
+  isListingUrl,
+  pickAllowedUrl,
+  normalizeDeadline,
+  deadlineFromCountdown,
   extractConditionsFromText,
   extractDeadlineFromText,
   extractRewardsFromText,
   extractFromSectionText,
+  UNKNOWN_DEADLINE,
 };

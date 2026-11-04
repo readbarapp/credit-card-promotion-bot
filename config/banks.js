@@ -29,7 +29,7 @@ module.exports = [
       "enabled": true,
       "maxPages": 40,
       "include": ["offer", "promo", "promotion", "優惠", "獎賞"],
-      "skip": ["login", "privacy", "/en-hk/", "prime-rates"]
+      "skip": ["login", "privacy", "/en-hk/", "prime-rates", "whatsapp", "wa.me", "/security"]
     },
     "sourceHint": "web",
     "sourceNote": "優惠總覽有分類 tab（銀行服務、投資、卡類、貸款及按揭、保險及強積金、網上理財）。每個 tab 先顯示最多 9 則，要撳「顯示更多」；詳情喺「了解詳情」。",

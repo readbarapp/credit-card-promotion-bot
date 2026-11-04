@@ -17,6 +17,10 @@ const {
   sendNotifications,
   buildDashboardPayload,
   writeOutputs,
+  unwrapOfferUrl,
+  isBadOfferUrl,
+  deadlineFromCountdown,
+  hongKongDateStr,
 } = require("./ai-parser");
 const {
   pickOfferImages,
@@ -331,14 +335,12 @@ async function expandCategoryTabs(page, cfg) {
   const moreSelector =
     cfg.moreSelector ||
     ".rwd-offers-obc-category.active .rwd-offers-obc-category-show-more-button a, .rwd-offers-obc-category-content.show .rwd-offers-obc-category-show-more-button a";
-  const cardSelector =
-    cfg.cardLinkSelector ||
-    ".rwd-promotion-card a[href], .rwd-promotion-card-viewDetails a[href]";
   const tabs = page.locator(tabSelector);
   const count = await tabs.count();
   if (!count) return [];
   const collected = [];
   const seen = new Set();
+  const today = hongKongDateStr();
 
   for (let i = 0; i < count; i += 1) {
     const tab = tabs.nth(i);
@@ -350,7 +352,7 @@ async function expandCategoryTabs(page, cfg) {
     }
     await new Promise((r) => setTimeout(r, cfg.waitAfterTabMs || 1600));
     await page
-      .waitForSelector(".rwd-promotion-card a[href], .rwd-offers-obc-no-offers-available-title", {
+      .waitForSelector(".rwd-promotion-card, .rwd-offers-obc-no-offers-available-title", {
         timeout: 10000,
       })
       .catch(() => {});
@@ -363,44 +365,68 @@ async function expandCategoryTabs(page, cfg) {
       await new Promise((r) => setTimeout(r, 700));
     }
 
-    const found = await page.evaluate((selector) => {
+    const found = await page.evaluate(() => {
       const out = [];
-      const seenHref = new Set();
-      for (const a of document.querySelectorAll(selector)) {
-        const href = a.href || a.getAttribute("href");
-        if (!href || /^(javascript:|#|mailto:|tel:)/i.test(href)) continue;
-        if (seenHref.has(href)) continue;
-        seenHref.add(href);
-        out.push({
-          href,
-          text: (a.innerText || a.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim(),
-        });
+      for (const card of document.querySelectorAll(".rwd-promotion-card")) {
+        if (card.getAttribute("aria-hidden") === "true") continue;
+        const heading = (card.querySelector(".rwd-promotion-card-promoHeading")?.innerText || "")
+          .replace(/\s+/g, " ")
+          .trim();
+        const desc = (card.querySelector(".rwd-promotion-card-promoDescription")?.innerText || "")
+          .replace(/\s+/g, " ")
+          .trim();
+        const countText = (card.querySelector(".rwd-promotion-card-countdown")?.innerText || "")
+          .replace(/\s+/g, " ")
+          .trim();
+        const view = card.querySelector(
+          ".rwd-promotion-card-viewDetails a[href], .rwd-promotion-card-image a[href], a.rwd-promotion-card-viewDetails[href]",
+        );
+        const href = view ? view.href || view.getAttribute("href") || "" : "";
+        if (!heading && !href) continue;
+        out.push({ href, heading, desc, countText });
       }
       return out;
-    }, cardSelector);
+    });
 
     for (const item of found) {
-      let href;
+      let href = unwrapOfferUrl(item.href);
       try {
-        href = new URL(item.href, page.url()).href;
+        href = href ? new URL(href, page.url()).href : "";
       } catch {
-        continue;
+        href = "";
       }
-      if (seen.has(href) || /\.(pdf|jpg|jpeg|png|gif)(\?|$)/i.test(href)) continue;
+      if (!href || isBadOfferUrl(href) || /\.(pdf|jpg|jpeg|png|gif)(\?|$)/i.test(href)) continue;
+      if (seen.has(href)) continue;
       seen.add(href);
-      collected.push({ href, tag: label, text: item.text, thumb: "" });
+      collected.push({
+        href,
+        tag: label,
+        text: item.heading || item.desc || "",
+        listingTitle: item.heading || "",
+        listingDescription: item.desc || "",
+        listingDeadline: deadlineFromCountdown(item.countText, today),
+        thumb: "",
+      });
     }
-    console.log(`[scrape] 分類「${label}」收集到 ${found.length} 條優惠連結`);
+    console.log(`[scrape] 分類「${label}」收集到 ${found.length} 張卡、跟進 ${collected.filter((c) => c.tag === label).length} 條優惠連結`);
   }
 
   return collected;
 }
 
 function mergeFollowCards(cardList, maxOffers) {
-  const picked = pickCardsAcrossCategories(cardList, maxOffers);
+  const cleaned = (cardList || [])
+    .map((card) => {
+      const href = unwrapOfferUrl(card && card.href);
+      if (!href || isBadOfferUrl(href)) return null;
+      return { ...card, href };
+    })
+    .filter(Boolean);
+  const picked = pickCardsAcrossCategories(cleaned, maxOffers);
   return {
     urls: picked.map((c) => c.href),
     tags: new Map(picked.map((c) => [c.href, c.tag])),
+    meta: new Map(picked.map((c) => [c.href, c])),
     picked,
   };
 }
@@ -456,6 +482,7 @@ async function scrapeBank(page, bank) {
       );
       followUrls = mergedCards.urls;
       listing._cardTags = mergedCards.tags;
+      listing._cardMeta = mergedCards.meta;
     } catch (err) {
       console.warn(`[scrape] ${bank.name} 分類優惠卡收集失敗：${err.message}`);
     }
@@ -474,24 +501,36 @@ async function scrapeBank(page, bank) {
   const seenLink = new Set(links.map((l) => l.href));
 
   for (const url of followUrls) {
+    if (isBadOfferUrl(url)) {
+      console.warn(`[scrape] ${bank.name} 跳過非優惠連結：${url}`);
+      continue;
+    }
     try {
       console.log(`[scrape] ${bank.name} 子頁 → ${url}`);
       const sub = await visitAndCollect(page, url, {
         waitMs: bank.waitMs || 1200,
       });
       const images = sub.images || [];
-      if ((sub.text && sub.text.length >= 40) || images.length) {
+      const cardMeta = (listing._cardMeta && (listing._cardMeta.get(url) || listing._cardMeta.get(sub.finalUrl))) || {};
+      if ((sub.text && sub.text.length >= 40) || images.length || cardMeta.listingTitle) {
         const imageNotes = images.length
           ? `\n【官網優惠圖 ${images.length} 張】\n${images.map((img) => img.src).join("\n")}`
           : "";
-        textBlocks.push(`【子頁 ${sub.title || url}】${sub.finalUrl}\n${sub.text || ""}${imageNotes}`);
+        const listingNotes = cardMeta.listingDescription
+          ? `\n【總覽卡簡介】${cardMeta.listingTitle || ""}\n${cardMeta.listingDescription}`
+          : "";
+        textBlocks.push(`【子頁 ${sub.title || url}】${sub.finalUrl}\n${sub.text || ""}${listingNotes}${imageNotes}`);
+        const finalUrl = isBadOfferUrl(sub.finalUrl) ? url : (sub.finalUrl || url);
         sectionRecords.push({
           kind: "detail",
-          url: sub.finalUrl || url,
-          title: sub.title || "",
+          url: finalUrl,
+          title: cardMeta.listingTitle || sub.title || "",
           text: sub.text || "",
           images,
-          category: (listing._cardTags && listing._cardTags.get(url)) || "",
+          category: cardMeta.tag || (listing._cardTags && listing._cardTags.get(url)) || "",
+          listingTitle: cardMeta.listingTitle || "",
+          listingDescription: cardMeta.listingDescription || "",
+          listingDeadline: cardMeta.listingDeadline || "",
         });
       }
       for (const link of sub.links) {

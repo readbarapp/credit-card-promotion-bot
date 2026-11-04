@@ -149,6 +149,113 @@ await check("scraper never calls Playwright screenshot or recordVideo", () => {
   assert.match(src, /expandCategoryDropdowns/);
   assert.match(src, /expandCategoryTabs/);
   assert.match(src, /collectImageOfferCards/);
+  assert.match(src, /rwd-promotion-card-viewDetails/);
+  assert.match(src, /unwrapOfferUrl/);
+});
+
+await check("WhatsApp share links unwrap to the real Hang Seng offer URL", () => {
+  const wa = "https://api.whatsapp.com/send?text=%E4%B8%80%E6%98%9F%E6%9C%9F%E5%A4%96%E5%B9%A3%E5%AE%9A%E5%AD%98%0A%0Ahttps%3A%2F%2Fwww.hangseng.com%2Fcms%2Femkt%2Fpmo%2Fgrp03%2Fp97%2Fchi%2Findex.html%3Fcid%3Ddt-d-promo-featured-1-zh%3Asocial%3A%24%7Bmedia%7D%3Ashare";
+  const href = parser.unwrapOfferUrl(wa);
+  assert.match(href, /hangseng\.com\/cms\/emkt/);
+  assert.doesNotMatch(href, /whatsapp/i);
+  assert.equal(parser.isBadOfferUrl(wa), true);
+  assert.equal(parser.isBadOfferUrl(href.replace(/:social:.*$/, "")), false);
+  assert.equal(
+    parser.pickAllowedUrl(wa, [{ href: "https://www.hangseng.com/cms/emkt/pmo/grp03/p97/chi/index.html", text: "了解詳情" }], "https://www.hangseng.com/zh-hk/personal/offers/"),
+    "https://www.hangseng.com/cms/emkt/pmo/grp03/p97/chi/index.html",
+  );
+  assert.equal(parser.isListingUrl("https://www.hangseng.com/zh-hk/personal/offers/"), true);
+  assert.equal(parser.isJunkTitle("在 WhatsApp 上分享"), true);
+});
+
+await check("deadlines keep end dates and do not invent 額滿即止", () => {
+  assert.equal(
+    parser.extractDeadlineFromText("額外獎賞推廣有效期由2025年4月1日起至2026年12月31日。"),
+    "2026-12-31",
+  );
+  assert.equal(
+    parser.extractDeadlineFromText("於2027年1月13日或之前申請東亞銀行銀聯雙幣鑽石卡"),
+    "2027-01-13",
+  );
+  assert.equal(parser.extractDeadlineFromText("年利率高達17%，只適用於兌換指定貨幣"), parser.UNKNOWN_DEADLINE);
+  assert.equal(parser.normalizeDeadline(""), parser.UNKNOWN_DEADLINE);
+  assert.equal(parser.normalizeDeadline("先到先得"), "先到先得");
+  assert.equal(parser.normalizeDeadline("額滿即止"), "額滿即止");
+  assert.equal(parser.deadlineFromCountdown("優惠僅剩16天", "2026-11-04"), "2026-11-20");
+});
+
+await check("BEA merchant hub keeps dropdown category name", () => {
+  const bank = { id: "bea", name: "東亞銀行", url: "https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html" };
+  const item = parser.extractFromSectionText(bank, {
+    kind: "detail",
+    url: "https://www.hkbea.com/html/tc/bea-credit-card-dining-offer-yro.html",
+    title: "餐飲優惠",
+    category: "餐飲優惠",
+    text: "餐飲優惠\n指定商戶\nagoda\nHutchgo\n條款及細則",
+  });
+  assert.equal(item.title, "餐飲優惠");
+  assert.match(item.rewards, /合作商戶/);
+  assert.ok(item.conditions.some((c) => /指定東亞信用卡/.test(c)));
+  const concert = parser.extractFromSectionText(bank, {
+    kind: "detail",
+    url: "https://www.hkbea.com/html/tc/bea-credit-card-entertainment-offer-2026-gigi-leung.html",
+    title: "梁詠琪演唱會門票優惠 | 東亞銀行",
+    category: "娛樂優惠",
+    text: "梁詠琪演唱會門票優惠\n憑指定東亞信用卡預購門票可享優先購票。\n須於推廣期內以指定信用卡付款。",
+  });
+  assert.match(concert.title, /梁詠琪/);
+});
+
+await check("Hang Seng listing blurb becomes task conditions, FAQ is skipped", () => {
+  const bank = { id: "hangseng", name: "恒生銀行", url: "https://www.hangseng.com/zh-hk/personal/offers/" };
+  const item = parser.extractFromSectionText(bank, {
+    kind: "detail",
+    url: "https://www.hangseng.com/zh-hk/personal/cards/products/travel-plus-card/",
+    title: "恒生Travel+ Visa Signature卡",
+    listingTitle: "升級餐飲迎新賞高達$1,200 +FUN Dollars",
+    listingDescription: "申請恒生Travel+ Visa Signature卡，須於發卡後以指定商戶簽賬滿HK$3,000。完成登記指定推廣。",
+    text: [
+      "申請貸款前需要先開立恒生銀行戶口嗎？",
+      "你需要注意的其他資訊",
+      "貸款計算機的結果只供參考。",
+      "以上案例只供參考。",
+    ].join("\n"),
+  });
+  assert.equal(item.title, "升級餐飲迎新賞高達$1,200 +FUN Dollars");
+  assert.ok(item.conditions.length >= 1, JSON.stringify(item.conditions));
+  assert.ok(item.conditions.every((c) => !/嗎？/.test(c)));
+  assert.ok(item.conditions.every((c) => !/只供參考/.test(c)));
+  assert.equal(item.url, "https://www.hangseng.com/zh-hk/personal/cards/products/travel-plus-card/");
+});
+
+await check("mergeOffers drops disabled banks and junk WhatsApp rows", () => {
+  const next = parser.mergeOffers({
+    previous: {
+      offers: [
+        { id: "old-mox", bank_id: "mox", bank_name: "Mox Bank", title: "舊Mox", url: "https://mox.com/zh/promotions/x/", deadline: "2026-12-31" },
+        { id: "old-wa", bank_id: "hangseng", bank_name: "恒生銀行", title: "在 WhatsApp 上分享", url: "https://api.whatsapp.com/send?text=x", deadline: "額滿即止" },
+      ],
+    },
+    incomingByBank: new Map([
+      ["hangseng", [{
+        id: "new-hs",
+        bank_id: "hangseng",
+        bank_name: "恒生銀行",
+        title: "美股必中賞",
+        rewards: "半價佣金",
+        conditions: ["須於推廣期內完成指定美股交易"],
+        requires_registration: "No",
+        deadline: "未註明",
+        url: "https://www.hangseng.com/cms/emkt/pmo/grp04/p95/chi/index.html",
+      }]],
+    ]),
+    errors: [],
+    banks: [{ id: "hangseng", name: "恒生銀行" }],
+  });
+  assert.equal(next.some((o) => o.bank_id === "mox"), false);
+  assert.equal(next.some((o) => /WhatsApp/.test(o.title)), false);
+  assert.equal(next.length, 1);
+  assert.equal(next[0].title, "美股必中賞");
 });
 
 await check("dashboard table markup includes required columns", () => {

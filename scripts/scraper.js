@@ -204,8 +204,15 @@ async function main() {
   }
 
   console.log(`[boot] ${list.length} 個平台，零截圖模式`);
-  if (!process.env.GEMINI_API_KEY) {
-    console.warn("[boot] 警告：未偵測到 GEMINI_API_KEY，AI 解析將失敗並保留舊資料");
+  const backends = [
+    process.env.GROQ_API_KEY && "groq",
+    process.env.OPENROUTER_API_KEY && "openrouter",
+    process.env.GEMINI_API_KEY && "gemini",
+  ].filter(Boolean);
+  if (backends.length) {
+    console.log(`[boot] AI 供應商：${backends.join(" → ")}（香港用戶建議 Groq）`);
+  } else {
+    console.warn("[boot] 未設定 GROQ_API_KEY / OPENROUTER_API_KEY / GEMINI_API_KEY，將用規則抽取（品質較低）");
   }
 
   const previous = loadPreviousData(path.join(__dirname, "..", "data.json"));

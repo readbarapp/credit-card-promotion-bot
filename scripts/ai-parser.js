@@ -1,8 +1,17 @@
 /**
- * AI 語意解析：Google Gemini（免費額度最高、支援 JSON Schema 結構化輸出）
+ * AI 語意解析（香港可用）
  *
- * 預設模型 gemini-2.5-flash-lite（免費層、高吞吐、適合抽欄位）。
- * 可用 Secrets GEMINI_MODEL 覆寫；失敗時自動回退其他 Flash 模型。
+ * Google Gemini 在香港通常無法申請 API Key。GitHub Actions 雖然在美國跑，
+ * 但金鑰本身申請唔到就無用。因此預設改走 Groq，並支援 OpenRouter / Gemini。
+ *
+ * 優先次序（有金鑰先用）：
+ *   1. Groq        GROQ_API_KEY        香港可申請、免信用卡
+ *   2. OpenRouter  OPENROUTER_API_KEY  免費模型（:free）
+ *   3. Gemini      GEMINI_API_KEY      可選，有海外帳戶先用
+ *   4. 規則抽取     無金鑰時仍可產出卡片（品質較低）
+ *
+ * 可用 AI_PROVIDER=groq|openrouter|gemini 強制指定。
+ * 可用 AI_MODEL 覆寫模型名稱。
  *
  * 嚴禁發明 url：只准使用爬蟲實際抓到的 <a href>。
  */
@@ -11,12 +20,11 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
-const DEFAULT_MODELS = [
-  process.env.GEMINI_MODEL,
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
-  "gemini-2.5-flash",
-].filter((m, i, arr) => m && arr.indexOf(m) === i);
+let lastAiBackend = "heuristic";
+
+function uniq(values) {
+  return values.filter((item, index, arr) => item && arr.indexOf(item) === index);
+}
 
 const OFFER_ITEM_SCHEMA = {
   type: "object",
@@ -187,8 +195,9 @@ function normalizeDeadline(raw) {
   return "額滿即止";
 }
 
-function buildPrompt(bank, scrapeResult, harvested) {
+function buildPrompt(bank, scrapeResult, harvested, maxChars = 14000, maxLinks = 40) {
   const linkLines = harvested
+    .slice(0, maxLinks)
     .map((l, i) => `${i + 1}. ${l.href}${l.text ? `  |  ${l.text}` : ""}`)
     .join("\n");
 
@@ -213,7 +222,7 @@ function buildPrompt(bank, scrapeResult, harvested) {
 ${linkLines || "(無)"}
 
 【網頁純文字】
-${(scrapeResult.text || "").slice(0, 80000)}
+${(scrapeResult.text || "").slice(0, maxChars)}
 `;
 }
 
@@ -255,6 +264,119 @@ async function callGemini(model, prompt, apiKey) {
   return text;
 }
 
+async function callOpenAiCompat({ baseUrl, apiKey, model, prompt, headers = {}, extraBody = {} }) {
+  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+      ...headers,
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.1,
+      max_tokens: 4096,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: '只輸出合法 JSON 物件，格式必須是 {"offers":[...]}，不要 markdown、不要解說。',
+        },
+        { role: "user", content: prompt },
+      ],
+      ...extraBody,
+    }),
+  });
+
+  const raw = await res.text();
+  if (!res.ok) {
+    const err = new Error(`${model} HTTP ${res.status}: ${raw.slice(0, 400)}`);
+    err.status = res.status;
+    throw err;
+  }
+
+  const json = JSON.parse(raw);
+  const text = json?.choices?.[0]?.message?.content;
+  if (!text) {
+    throw new Error(`${model} 回傳空白`);
+  }
+  return text;
+}
+
+function listProviders() {
+  const preferred = String(process.env.AI_PROVIDER || "").trim().toLowerCase();
+  const catalog = [];
+
+  if (process.env.GROQ_API_KEY) {
+    catalog.push({
+      id: "groq",
+      maxChars: 3500,
+      maxLinks: 25,
+      models: uniq([
+        process.env.AI_MODEL,
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.6-27b",
+      ]),
+      call: (model, prompt) =>
+        callOpenAiCompat({
+          baseUrl: "https://api.groq.com/openai/v1",
+          apiKey: process.env.GROQ_API_KEY,
+          model,
+          prompt,
+        }),
+    });
+  }
+
+  if (process.env.OPENROUTER_API_KEY) {
+    catalog.push({
+      id: "openrouter",
+      maxChars: 5000,
+      maxLinks: 30,
+      models: uniq([
+        process.env.AI_MODEL,
+        "openai/gpt-oss-20b:free",
+        "qwen/qwen3-32b:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+      ]),
+      call: (model, prompt) =>
+        callOpenAiCompat({
+          baseUrl: "https://openrouter.ai/api/v1",
+          apiKey: process.env.OPENROUTER_API_KEY,
+          model,
+          prompt,
+          headers: {
+            "HTTP-Referer": "https://github.com/readbarapp/credit-card-promotion-bot",
+            "X-Title": "HK Bank Promo Dashboard",
+          },
+        }),
+    });
+  }
+
+  if (process.env.GEMINI_API_KEY) {
+    catalog.push({
+      id: "gemini",
+      maxChars: 80000,
+      maxLinks: 80,
+      models: uniq([
+        process.env.AI_MODEL,
+        process.env.GEMINI_MODEL,
+        "gemini-2.5-flash-lite",
+        "gemini-2.0-flash",
+        "gemini-2.5-flash",
+      ]),
+      call: (model, prompt) => callGemini(model, prompt, process.env.GEMINI_API_KEY),
+    });
+  }
+
+  if (preferred) {
+    const hit = catalog.filter((p) => p.id === preferred);
+    if (hit.length) return hit;
+    console.warn(`[ai] AI_PROVIDER=${preferred} 但未找到對應金鑰，改用已設定的供應商`);
+  }
+  return catalog;
+}
+
 function parseJsonPayload(text) {
   const cleaned = String(text)
     .replace(/```json/gi, "")
@@ -266,66 +388,115 @@ function parseJsonPayload(text) {
   return [];
 }
 
-async function extractOffersWithAi(bank, scrapeResult) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("未設定 GEMINI_API_KEY，略過 AI 解析");
+function toOffers(bank, items, harvested, scrapeResult) {
+  return (items || [])
+    .filter((item) => item && item.title)
+    .map((item) => {
+      const title = String(item.title).trim().slice(0, 180);
+      const deadline = normalizeDeadline(item.deadline);
+      const url = pickAllowedUrl(
+        item.url,
+        harvested,
+        scrapeResult.finalUrl || bank.url,
+      );
+      const registration = /yes|是|須|需要/i.test(String(item.requires_registration || ""))
+        ? "Yes"
+        : "No";
+      return {
+        id: offerId(bank.name, title),
+        bank_id: bank.id,
+        bank_name: bank.name,
+        title,
+        rewards: String(item.rewards || title).trim().slice(0, 500),
+        conditions: Array.isArray(item.conditions)
+          ? item.conditions.map((c) => String(c).trim()).filter(Boolean).slice(0, 12)
+          : [],
+        requires_registration: registration,
+        deadline,
+        url,
+      };
+    });
+}
+
+function extractOffersHeuristic(bank, scrapeResult, harvested) {
+  const keywords = /優惠|回贈|迎新|獎賞|折扣|現金|里數|免年費|簽賬|miles|cashback|rebate|reward|offer|promo/i;
+  const skip = /登入|私隱|cookie|招聘|關於|聯絡|條款及細則|privacy|login|career|about/i;
+  const seen = new Set();
+  const items = [];
+
+  for (const link of harvested) {
+    const text = String(link.text || "").replace(/\s+/g, " ").trim();
+    if (!text || text === "listing") continue;
+    if (text.length < 6 || text.length > 90) continue;
+    if (skip.test(text) || skip.test(link.href)) continue;
+    if (!keywords.test(text) && !keywords.test(link.href)) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({
+      title: text,
+      rewards: text,
+      conditions: [],
+      requires_registration: /登記|註冊|報名/.test(text) ? "Yes" : "No",
+      deadline: "額滿即止",
+      url: link.href,
+    });
+    if (items.length >= 10) break;
   }
 
-  const harvested = filterHarvestedLinks(scrapeResult.links, scrapeResult.finalUrl || bank.url);
-  const prompt = buildPrompt(bank, scrapeResult, harvested);
+  return toOffers(bank, items, harvested, scrapeResult);
+}
 
+async function extractOffersWithAi(bank, scrapeResult) {
+  const harvested = filterHarvestedLinks(scrapeResult.links, scrapeResult.finalUrl || bank.url);
+  const providers = listProviders();
   let lastError;
-  for (const model of DEFAULT_MODELS) {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        console.log(`[ai] ${bank.name} → ${model} (attempt ${attempt})`);
-        const text = await callGemini(model, prompt, apiKey);
-        const items = parseJsonPayload(text);
-        return items
-          .filter((item) => item && item.title)
-          .map((item) => {
-            const title = String(item.title).trim().slice(0, 180);
-            const deadline = normalizeDeadline(item.deadline);
-            const url = pickAllowedUrl(
-              item.url,
-              harvested,
-              scrapeResult.finalUrl || bank.url,
-            );
-            const registration = /yes|是|須|需要/i.test(
-              String(item.requires_registration || ""),
-            )
-              ? "Yes"
-              : "No";
-            return {
-              id: offerId(bank.name, title),
-              bank_id: bank.id,
-              bank_name: bank.name,
-              title,
-              rewards: String(item.rewards || "").trim().slice(0, 500),
-              conditions: Array.isArray(item.conditions)
-                ? item.conditions.map((c) => String(c).trim()).filter(Boolean).slice(0, 12)
-                : [],
-              requires_registration: registration,
-              deadline,
-              url,
-            };
-          });
-      } catch (err) {
-        lastError = err;
-        const retryable = err.status === 429 || err.status === 503 || err.status === 404;
-        if (err.status === 404) break;
-        if (retryable && attempt < 3) {
-          const wait = 1500 * 2 ** (attempt - 1);
-          console.warn(`[ai] ${bank.name} 重試 ${model}，等待 ${wait}ms：${err.message}`);
-          await new Promise((r) => setTimeout(r, wait));
-          continue;
+
+  for (const provider of providers) {
+    const prompt = buildPrompt(
+      bank,
+      scrapeResult,
+      harvested,
+      provider.maxChars,
+      provider.maxLinks,
+    );
+    for (const model of provider.models) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`[ai] ${bank.name} → ${provider.id}/${model} (attempt ${attempt})`);
+          const text = await provider.call(model, prompt);
+          const offers = toOffers(bank, parseJsonPayload(text), harvested, scrapeResult);
+          if (!offers.length) {
+            throw new Error("模型沒有抽出任何優惠");
+          }
+          lastAiBackend = provider.id;
+          return offers;
+        } catch (err) {
+          lastError = err;
+          const retryable = err.status === 429 || err.status === 503 || err.status === 404;
+          if (err.status === 404) break;
+          if (retryable && attempt < 3) {
+            const wait = 1500 * 2 ** (attempt - 1);
+            console.warn(`[ai] ${bank.name} 重試 ${provider.id}/${model}，等待 ${wait}ms：${err.message}`);
+            await new Promise((r) => setTimeout(r, wait));
+            continue;
+          }
+          if (!retryable) break;
         }
-        if (!retryable) break;
       }
     }
   }
-  throw lastError || new Error("Gemini 解析失敗");
+
+  console.warn(
+    `[ai] ${bank.name} ${providers.length ? "模型失敗" : "未設定 AI 金鑰"}，改用規則抽取`,
+    lastError ? lastError.message : "",
+  );
+  const fallback = extractOffersHeuristic(bank, scrapeResult, harvested);
+  if (fallback.length) {
+    lastAiBackend = "heuristic";
+    return fallback;
+  }
+  throw lastError || new Error("沒有可用的 AI 金鑰，且規則抽取為空");
 }
 
 function mergeOffers({ previous = {}, incomingByBank, errors, banks }) {
@@ -510,7 +681,7 @@ function buildDashboardPayload({ banks, offers, errors, startedAt }) {
       timeZone: "Asia/Hong_Kong",
       hour12: false,
     }),
-    generatedBy: "scripts/scraper.js + Gemini",
+    generatedBy: `scripts/scraper.js + ${lastAiBackend}`,
     banks: banks.map((b) => ({
       id: b.id,
       name: b.name,

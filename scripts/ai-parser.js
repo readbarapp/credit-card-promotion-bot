@@ -355,8 +355,8 @@ function listProviders() {
   if (openRouterKey) {
     catalog.push({
       id: "openrouter",
-      maxChars: 5000,
-      maxLinks: 30,
+      maxChars: 12000,
+      maxLinks: 40,
       // 舊 :free slug（gpt-oss / llama-3.3）喺 2026-11 已 404，改用現時仍然免費嘅模型
       models: uniq([
         process.env.AI_MODEL,
@@ -500,6 +500,13 @@ function extractOffersHeuristic(bank, scrapeResult, harvested) {
   return toOffers(bank, items, harvested, scrapeResult);
 }
 
+function compactScrapedText(text, maxChars) {
+  const parts = String(text || "").split(/\n{2,}(?=【)/);
+  if (parts.length <= 1) return String(text || "").slice(0, maxChars);
+  const per = Math.max(800, Math.floor(maxChars / parts.length));
+  return parts.map((part) => part.slice(0, per)).join("\n\n").slice(0, maxChars);
+}
+
 async function extractOffersWithAi(bank, scrapeResult) {
   const harvested = filterHarvestedLinks(scrapeResult.links, scrapeResult.finalUrl || bank.url);
   const providers = listProviders();
@@ -508,7 +515,10 @@ async function extractOffersWithAi(bank, scrapeResult) {
   for (const provider of providers) {
     const prompt = buildPrompt(
       bank,
-      scrapeResult,
+      {
+        ...scrapeResult,
+        text: compactScrapedText(scrapeResult.text, provider.maxChars),
+      },
       harvested,
       provider.maxChars,
       provider.maxLinks,
@@ -740,6 +750,10 @@ function buildDashboardPayload({ banks, offers, errors, startedAt }) {
       name: b.name,
       nameEn: b.nameEn,
       url: b.url,
+      extraUrls: b.extraUrls || [],
+      follow: b.follow || null,
+      sourceHint: b.sourceHint || "web",
+      sourceNote: b.sourceNote || "",
       enabled: b.enabled !== false,
     })),
     errors,

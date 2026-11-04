@@ -116,6 +116,72 @@ async function autoScroll(page) {
   });
 }
 
+function canonicalizeHref(href) {
+  try {
+    const u = new URL(href);
+    u.hash = "";
+    return u.toString();
+  } catch {
+    return href;
+  }
+}
+
+function hostnameOf(href) {
+  try {
+    return new URL(href).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+function isAllowedHost(href, bank, listingUrl) {
+  const host = hostnameOf(href);
+  if (!host) return false;
+  const listingHost = hostnameOf(listingUrl || bank.url);
+  if (host === listingHost) return true;
+  return (bank.allowedHosts || []).some((allowed) => {
+    const a = String(allowed).replace(/^www\./, "");
+    return host === a || host.endsWith(`.${a}`);
+  });
+}
+
+function pickFollowUrls(bank, links, listingUrl) {
+  const follow = bank.follow || {};
+  if (follow.enabled === false) return [];
+  const maxPages = Math.max(0, Number(follow.maxPages || 5));
+  const include = (follow.include || ["offer", "promo", "promotion", "優惠", "獎賞"]).map((s) =>
+    String(s).toLowerCase(),
+  );
+  const listing = canonicalizeHref(listingUrl || bank.url);
+  const seen = new Set([listing]);
+  const out = [];
+
+  for (const extra of bank.extraUrls || []) {
+    const canonical = canonicalizeHref(extra);
+    if (seen.has(canonical)) continue;
+    seen.add(canonical);
+    out.push(canonical);
+  }
+
+  for (const link of links || []) {
+    if (out.length >= maxPages) break;
+    const href = link && link.href;
+    if (!href) continue;
+    const canonical = canonicalizeHref(href);
+    if (seen.has(canonical)) continue;
+    if (!/^https?:/i.test(canonical)) continue;
+    if (!isAllowedHost(canonical, bank, listing)) continue;
+    if (/\.(pdf|jpg|jpeg|png|gif|zip|mp4)(\?|$)/i.test(canonical)) continue;
+    if (/login|signin|privacy|cookie|career|recruit/i.test(canonical)) continue;
+    const blob = `${canonical} ${link.text || ""}`.toLowerCase();
+    if (!include.some((key) => blob.includes(key))) continue;
+    seen.add(canonical);
+    out.push(canonical);
+  }
+
+  return out.slice(0, maxPages);
+}
+
 async function collectPageContent(page) {
   return page.evaluate(() => {
     const root =
@@ -156,32 +222,89 @@ async function collectPageContent(page) {
   });
 }
 
-async function scrapeBank(page, bank) {
-  console.log(`[scrape] ${bank.name} → ${bank.url}`);
-  const response = await page.goto(bank.url, {
+async function collectClickHrefs(page, names) {
+  const found = [];
+  for (const name of names || []) {
+    try {
+      const loc = page.getByRole("link", { name, exact: false }).first();
+      if (!(await loc.isVisible({ timeout: 600 }).catch(() => false))) continue;
+      const href = await loc.getAttribute("href");
+      if (!href) continue;
+      found.push(new URL(href, page.url()).href);
+    } catch {
+      /* 頁面未必有呢個連結 */
+    }
+  }
+  return found;
+}
+
+async function visitAndCollect(page, url) {
+  const response = await page.goto(url, {
     waitUntil: "domcontentloaded",
     timeout: 60000,
   });
-
-  await new Promise((r) => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 1200));
   await dismissOverlays(page);
   await autoScroll(page);
-  await new Promise((r) => setTimeout(r, 800));
+  await new Promise((r) => setTimeout(r, 600));
   await dismissOverlays(page);
-
   const content = await collectPageContent(page);
-  if (!content.text || content.text.length < 80) {
-    throw new Error(
-      `頁面文字過少（${content.text ? content.text.length : 0} 字），可能被攔截或結構變更`,
-    );
-  }
-
   return {
     status: response ? response.status() : null,
     finalUrl: page.url(),
     title: content.title,
-    text: content.text.slice(0, 100000),
+    text: content.text,
     links: content.links,
+  };
+}
+
+async function scrapeBank(page, bank) {
+  console.log(`[scrape] ${bank.name} → ${bank.url}`);
+  const listing = await visitAndCollect(page, bank.url);
+  if (!listing.text || listing.text.length < 80) {
+    throw new Error(
+      `頁面文字過少（${listing.text ? listing.text.length : 0} 字），可能被攔截或結構變更`,
+    );
+  }
+
+  const clickHrefs = await collectClickHrefs(page, bank.follow && bank.follow.clickNames);
+  const seedLinks = listing.links.concat(clickHrefs.map((href) => ({ href, text: "nav" })));
+  const followUrls = pickFollowUrls(bank, seedLinks, listing.finalUrl);
+  const sections = [`【總覽】${listing.finalUrl}\n${listing.text}`];
+  const links = [...listing.links];
+  const seenLink = new Set(links.map((l) => l.href));
+
+  for (const url of followUrls) {
+    try {
+      console.log(`[scrape] ${bank.name} 子頁 → ${url}`);
+      const sub = await visitAndCollect(page, url);
+      if (sub.text && sub.text.length >= 40) {
+        sections.push(`【子頁 ${sub.title || url}】${sub.finalUrl}\n${sub.text}`);
+      }
+      for (const link of sub.links) {
+        if (!seenLink.has(link.href)) {
+          seenLink.add(link.href);
+          links.push(link);
+        }
+      }
+      await new Promise((r) => setTimeout(r, 700));
+    } catch (err) {
+      console.warn(`[scrape] ${bank.name} 子頁失敗（繼續）：${url} → ${err.message}`);
+    }
+  }
+
+  if (bank.sourceHint === "app" && bank.sourceNote) {
+    sections.push(`【來源限制】${bank.sourceNote}`);
+  }
+
+  return {
+    status: listing.status,
+    finalUrl: listing.finalUrl,
+    title: listing.title,
+    text: sections.join("\n\n").slice(0, 120000),
+    links,
+    sourceHint: bank.sourceHint || "web",
+    sourceNote: bank.sourceNote || "",
   };
 }
 

@@ -34,7 +34,9 @@
     header {
       background: linear-gradient(120deg, var(--navy), var(--navy-2));
       color: #fff;
-      padding: 22px 20px 18px;
+      padding: 22px 20px 24px;
+      position: relative;
+      z-index: 2;
     }
     .wrap { width: min(1180px, calc(100% - 24px)); margin: 0 auto; }
     .header-row { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
@@ -54,7 +56,7 @@
     .btn-line { background: #fff; border: 1px solid var(--line); color: var(--ink); }
     button:disabled { opacity: .55; cursor: not-allowed; }
     .console {
-      margin-top: -18px;
+      margin-top: 16px;
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: var(--radius);
@@ -64,6 +66,8 @@
       grid-template-columns: 1fr auto;
       gap: 12px;
       align-items: center;
+      position: relative;
+      z-index: 1;
     }
     .status-pill {
       display: inline-flex; align-items: center; gap: 8px;
@@ -118,6 +122,8 @@
     dialog {
       border: 0; border-radius: 20px; width: min(760px, calc(100% - 20px));
       padding: 0; box-shadow: 0 30px 80px rgba(0,0,0,.28);
+      max-height: calc(100vh - 24px);
+      overflow: auto;
     }
     dialog::backdrop { background: rgba(14,28,54,.55); }
     .modal { padding: 18px; }
@@ -131,7 +137,24 @@
       position: fixed; right: 16px; bottom: 16px; background: var(--navy); color: #fff;
       padding: 12px 14px; border-radius: 12px; display: none; z-index: 20; max-width: min(420px, calc(100% - 24px));
     }
-    code { background: #efe7d4; padding: 1px 5px; border-radius: 6px; }
+    code { background: #efe7d4; color: var(--navy); padding: 1px 5px; border-radius: 6px; }
+    header code {
+      background: rgba(255, 255, 255, 0.16);
+      color: #f6e7b8;
+      border: 1px solid rgba(246, 231, 184, 0.35);
+    }
+    .pat-guide {
+      background: #f7f1e3;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin: 10px 0 4px;
+    }
+    .pat-guide summary { font-weight: 800; cursor: pointer; }
+    .pat-guide ol { margin: 8px 0 0; padding-left: 18px; color: var(--ink); }
+    .pat-guide li { margin: 6px 0; }
+    .badge.app { background: #e8eefc; color: #1e3a8a; }
+    dialog { max-height: calc(100vh - 24px); overflow: auto; }
     @media (max-width: 900px) {
       .layout, .filters, .row-2, .console { grid-template-columns: 1fr; }
       .console-actions { justify-content: flex-start; }
@@ -191,12 +214,12 @@
           <h2>如何新增／修改監控平台</h2>
           <p class="muted">GitHub Pages 是靜態網站，清單存在倉庫的 <code>config/banks.js</code>。</p>
           <ol>
-            <li>按「⚙️ 管理監控平台」，貼上有 <code>repo</code> 權限的 GitHub PAT（只存瀏覽器 LocalStorage）。</li>
+            <li>按「⚙️ 管理監控平台」，依教學建立 GitHub PAT（Fine-grained：Contents + Actions 讀寫）。Token 只存瀏覽器 LocalStorage。</li>
             <li>新增、編輯或刪除銀行名稱與官方總覽 URL。</li>
             <li>按「儲存並更新至 GitHub」，前端會用 Contents API 直接 commit <code>config/banks.js</code>。</li>
             <li>再按「🚀 立即執行一次爬蟲」觸發 Repository Dispatch。</li>
-            <li>或到 GitHub 網頁直接編輯 <code>config/banks.js</code> 後，於 Actions 手動 Run workflow。</li>
-            <li>香港：Gemini／Groq 可能申請唔到或封 IP。到 <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter Keys</a> 免費開 key，Secret 名稱必須係 <code>OPENROUTER_API_KEY</code>。</li>
+            <li>滙豐會跟進 Red Hot Offers 子頁（例如最新優惠）。Mox／AlipayHK 多數詳情只在 App，網站只能抽到公開頁。</li>
+            <li>香港 AI：到 <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter Keys</a> 開 key，Secret 名稱必須係 <code>OPENROUTER_API_KEY</code>。</li>
           </ol>
         </section>
         <section class="side-card">
@@ -215,7 +238,28 @@
   <dialog id="admin">
     <form class="modal" id="admin-form">
       <h2>⚙️ 管理監控平台</h2>
-      <p class="muted">PAT 只送到 <code>api.github.com</code>，用來寫入 <code>config/banks.js</code>、觸發／取消 Actions。請用 fine-grained token（Contents + Actions）或 classic <code>repo</code> 權限。</p>
+      <p class="muted">PAT 只送到 <code>api.github.com</code>，用來寫入 <code>config/banks.js</code>、觸發／取消 Actions。唔會寫進 GitHub 倉庫。</p>
+      <details class="pat-guide" open>
+        <summary>怎樣建立 GitHub PAT？要開咩權限？</summary>
+        <ol>
+          <li>登入 GitHub，撳右上角頭像 → <b>Settings</b>。</li>
+          <li>最左邊滾落最底，撳 <b>Developer settings</b>。</li>
+          <li>撳 <b>Personal access tokens</b> → <b>Fine-grained tokens</b> → <b>Generate new token</b>。<br>
+            直接連結：<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">建立 Fine-grained token</a></li>
+          <li><b>Token name</b> 隨意，例如 <code>hk-promo-dashboard</code>；<b>Expiration</b> 建議 90 日。</li>
+          <li><b>Resource owner</b> 選你自己嘅帳號（或這個 repo 所屬 org）。</li>
+          <li><b>Repository access</b> 選 <b>Only select repositories</b>，只勾 <code>credit-card-promotion-bot</code>。</li>
+          <li>展開 <b>Repository permissions</b>，只開以下兩項（其他保持 No access）：
+            <ul>
+              <li><b>Contents</b> → <b>Read and write</b>（讀寫 <code>config/banks.js</code>）</li>
+              <li><b>Actions</b> → <b>Read and write</b>（睇狀態、啟動、終止爬蟲）</li>
+            </ul>
+            <b>Metadata</b> 會自動變成 Read-only，唔使改。
+          </li>
+          <li>撳 Generate token，複製 <code>github_pat_…</code>。呢串只會顯示一次，貼入下面欄位。</li>
+          <li>如果你比較熟 Classic token：用 <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">Classic token 頁</a>，只勾 <code>repo</code> 即可（權限較闊，較唔建議）。</li>
+        </ol>
+      </details>
       <div class="modal-grid">
         <label>GitHub Personal Access Token
           <input id="pat" type="password" autocomplete="off" placeholder="ghp_… 或 github_pat_…">
@@ -250,7 +294,7 @@
     </form>
   </dialog>
   <div class="toast" id="toast" role="status"></div>
-  <script type="application/json" id="embedded-data">{"lastUpdated":null,"lastUpdatedHkt":null,"generatedBy":"scripts/scraper.js + Gemini","banks":[{"id":"hsbc","name":"滙豐銀行","nameEn":"HSBC","url":"https://www.hsbc.com.hk/zh-hk/credit-cards/","enabled":true},{"id":"hangseng","name":"恒生銀行","nameEn":"Hang Seng","url":"https://www.hangseng.com/zh-hk/personal/cards/spending-privileges/offers-of-the-month-all/month-creditcard/","enabled":true},{"id":"boc","name":"中銀香港","nameEn":"BOCHK","url":"https://www.bochk.com/tc/creditcard/promotions/offers.html","enabled":true},{"id":"sc","name":"渣打銀行","nameEn":"Standard Chartered","url":"https://www.sc.com/hk/zh/credit-cards/offers/","enabled":true},{"id":"mox","name":"Mox Bank","nameEn":"Mox","url":"https://mox.com/zh/promotions/","enabled":true},{"id":"bea","name":"東亞銀行","nameEn":"BEA","url":"https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html","enabled":true},{"id":"alipayhk","name":"AlipayHK","nameEn":"AlipayHK","url":"https://www.alipayhk.com/zh/promotion/","enabled":true}],"errors":[],"stats":{"total":0,"active":0,"isNew":0,"expiring7d":0,"durationMs":0},"offers":[]}</script>
+  <script type="application/json" id="embedded-data">{"lastUpdated":null,"lastUpdatedHkt":null,"generatedBy":"scripts/scraper.js","banks":[{"id":"hsbc","name":"滙豐銀行","nameEn":"HSBC","url":"https://www.redhotoffers.hsbc.com.hk/tc/home/","sourceHint":"web","enabled":true},{"id":"hangseng","name":"恒生銀行","nameEn":"Hang Seng","url":"https://www.hangseng.com/zh-hk/personal/cards/spending-privileges/offers-of-the-month-all/month-creditcard/","sourceHint":"web","enabled":true},{"id":"boc","name":"中銀香港","nameEn":"BOCHK","url":"https://www.bochk.com/tc/creditcard/promotions/offers.html","sourceHint":"web","enabled":true},{"id":"sc","name":"渣打銀行","nameEn":"Standard Chartered","url":"https://www.sc.com/hk/zh/credit-cards/offers/","sourceHint":"web","enabled":true},{"id":"mox","name":"Mox Bank","nameEn":"Mox","url":"https://mox.com/zh/promotions/","sourceHint":"app","sourceNote":"Mox Earn 商戶優惠主要在 App 內；網站只公開部分推廣頁，爬蟲會跟進網站上的子頁，但無法進入 App。","enabled":true},{"id":"bea","name":"東亞銀行","nameEn":"BEA","url":"https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html","sourceHint":"web","enabled":true},{"id":"alipayhk","name":"AlipayHK","nameEn":"AlipayHK","url":"https://www.alipayhk.com/zh/promotion/","sourceHint":"app","sourceNote":"AlipayHK 即減券、快閃優惠多數只在 App 領取；官網優惠專區資訊有限，無法代替打開 App。","enabled":true}],"errors":[],"stats":{"total":0,"active":0,"isNew":0,"expiring7d":0,"durationMs":0},"offers":[]}</script>
   <script>
     const KEYS = {
       pat: "hkpromo.github.pat",
@@ -403,7 +447,7 @@
       select.value = current;
 
       $("bank-side").innerHTML = banks.length
-        ? `<ol>${banks.map((b) => `<li><a href="${escapeAttr(b.url)}" target="_blank" rel="noopener">${escapeHtml(b.name)}</a></li>`).join("")}</ol>`
+        ? `<ol>${banks.map((b) => `<li><a href="${escapeAttr(b.url)}" target="_blank" rel="noopener">${escapeHtml(b.name)}</a>${b.sourceHint === "app" ? " <span class='badge app'>App 為主</span>" : ""}</li>`).join("")}</ol>`
         : "尚未載入。";
 
       const errors = state.data.errors || [];
@@ -424,9 +468,14 @@
       });
     }
 
+    function bankMeta(bankId) {
+      return (state.data.banks || []).find((b) => b.id === bankId) || {};
+    }
+
     function renderCard(o) {
       const left = daysUntil(o.deadline);
       const hot = left !== null && left >= 0 && left <= 7;
+      const meta = bankMeta(o.bank_id);
       const checks = loadChecks()[o.id] || {};
       const conditions = o.conditions && o.conditions.length
         ? o.conditions.map((c, i) => `
@@ -443,10 +492,12 @@
             ${hot ? `<span class="badge hot">🔴 ${left} 天內到期</span>` : ""}
             ${o.status === "expired" ? `<span class="badge gone">Expired</span>` : ""}
             ${o.requires_registration === "Yes" ? `<span class="badge">須登記</span>` : ""}
+            ${meta.sourceHint === "app" ? `<span class="badge app">詳情主要在 App</span>` : ""}
           </div>
           <h3>${escapeHtml(o.title)}</h3>
           <p class="rewards">${escapeHtml(o.rewards || "")}</p>
           <p class="deadline ${hot ? "hot" : ""}">截止：${escapeHtml(o.deadline || "額滿即止")}${left === 0 ? "（今日到期）" : ""}</p>
+          ${meta.sourceNote ? `<p class="muted">${escapeHtml(meta.sourceNote)}</p>` : ""}
           <a href="${escapeAttr(o.url)}" target="_blank" rel="noopener">查看官網原始連結</a>
           <details>
             <summary>任務條件 Checklist</summary>

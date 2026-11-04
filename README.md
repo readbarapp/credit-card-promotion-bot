@@ -54,7 +54,7 @@ GitHub Pages  →  任何人打開網址即可閱讀
 |---|---|
 | `config/banks.js` | 7 大初始平台與官方總覽 URL（組態驅動） |
 | `.github/workflows/scrape.yml` | Cron 08:00 HKT、Playwright、Secrets、自動 commit |
-| `scripts/scraper.js` | 通用爬蟲：UA、Cookie 彈窗、Auto-scroll、單平台容錯 |
+| `scripts/scraper.js` | 通用爬蟲：UA、Cookie 彈窗、Auto-scroll、跟進子頁、單平台容錯 |
 | `scripts/ai-parser.js` | Groq／OpenRouter／Gemini 抽取、真實 href 綁定、去重、Webhook |
 | `index.html` | 響應式 Dashboard + 管理面板 + Worker 控制台 |
 | `data.json` | 最新優惠資料（Pages 與前端皆讀此檔） |
@@ -63,7 +63,7 @@ GitHub Pages  →  任何人打開網址即可閱讀
 
 ## 初始 7 大平台（官方總覽頁）
 
-1. 滙豐銀行 — https://www.hsbc.com.hk/zh-hk/credit-cards/
+1. 滙豐銀行 — https://www.redhotoffers.hsbc.com.hk/tc/home/（會跟進最新優惠等子頁）
 2. 恒生銀行 — https://www.hangseng.com/zh-hk/personal/cards/spending-privileges/offers-of-the-month-all/month-creditcard/
 3. 中銀香港 — https://www.bochk.com/tc/creditcard/promotions/offers.html
 4. 渣打銀行 — https://www.sc.com/hk/zh/credit-cards/offers/
@@ -110,20 +110,41 @@ Telegram：跟 [@BotFather](https://t.me/BotFather) 建立 bot，再跟 [@userin
 
 沒有寫入權限時，爬蟲會跑完但無法 commit `data.json`。
 
-### 4. 前端控制台（PAT）
+### 4. 前端控制台要用的 GitHub PAT（點樣搵、要開咩權限）
 
-Dashboard 要替你 commit 清單並觸發／取消 Actions，需要 **Personal Access Token**：
+Dashboard 要替你改 `config/banks.js`、啟動／終止 Actions，需要 **Personal Access Token**。Token **只存在你瀏覽器 LocalStorage**，只會打去 `api.github.com`，唔會寫進倉庫。
 
-建議使用 Fine-grained token：
+介面「⚙️ 管理監控平台」入面都有同一份教學。
 
-- Repository access：只選這個倉庫
-- Permissions：
-  - **Contents**: Read and write（改 `config/banks.js`）
-  - **Actions**: Read and write（觸發與取消 workflow）
+**建議：Fine-grained token（權限最細）**
 
-Classic token 則需要 `repo` 權限。
+1. 登入 GitHub，撳右上角頭像 → **Settings**
+2. 左欄滾落最底 → **Developer settings**
+3. **Personal access tokens** → **Fine-grained tokens** → **Generate new token**  
+   直接開：[建立 Fine-grained token](https://github.com/settings/personal-access-tokens/new)
+4. Token name：例如 `hk-promo-dashboard`；Expiration：建議 90 日
+5. Resource owner：選你自己（或 repo 所屬 org）
+6. Repository access：選 **Only select repositories**，只勾 `credit-card-promotion-bot`
+7. Repository permissions 只開呢兩項，其他保持 **No access**：
 
-在 Dashboard 按「⚙️ 管理監控平台」貼上 token。Token **只存在你的瀏覽器 LocalStorage**，不會寫進倉庫。
+   | Permission | Access | 用途 |
+   |---|---|---|
+   | **Contents** | **Read and write** | 讀／寫 `config/banks.js` |
+   | **Actions** | **Read and write** | 睇 run、啟動、終止爬蟲 |
+
+   **Metadata** 會自動變 Read-only，唔使改。唔好開 Administration。
+
+8. Generate token，複製 `github_pat_…`（只顯示一次）
+9. 打開 Dashboard → ⚙️ 管理監控平台 → 貼上 PAT → 「只儲存連線設定」
+
+**備選：Classic token（權限較闊）**
+
+1. 開 [Classic token 頁](https://github.com/settings/tokens/new)
+2. Note 填名稱，Expiration 自訂
+3. 只勾 **`repo`**（包含 private；若倉庫是 public，理論上 `public_repo` 都得，但 `repo` 最穩）
+4. Generate token，複製 `ghp_…`
+
+唔使勾 `workflow`（嗰個係改 workflow 檔案，唔係觸發爬蟲）。
 
 ### 5. 第一次跑爬蟲
 
@@ -156,9 +177,15 @@ node scripts/scraper.js
 - 管理面板：增刪改監測清單，`PUT /repos/{owner}/{repo}/contents/config/banks.js`
 - 控制台：`POST /dispatches` 啟動、`POST /actions/runs/{id}/cancel` 終止
 
+## 子頁同 App 限定優惠
+
+- **滙豐**：總覽改為 [Red Hot Offers](https://www.redhotoffers.hsbc.com.hk/tc/home/)。爬蟲會再開「最新優惠」「全年優惠」等子頁（`extraUrls` + 頁面上真實連結，每間銀行有 `follow.maxPages` 上限），唔會估網址。
+- **Mox / AlipayHK**：商戶即減、券、Earn 專區多數只在 App。爬蟲可以跟進官網已公開的 `/promotions/` 子頁，但**入唔到 App**。Dashboard 會標「詳情主要在 App」。
+- 若要加其他子頁：編輯 `config/banks.js` 的 `extraUrls`，或用管理面板更新後再跑一次爬蟲。
+
 ## 注意事項
 
 - 銀行網站可能有反爬、地區限制或登入牆。失敗不中斷整體流程，錯誤顯示在側欄。
 - OpenRouter 免費層約 50 次／日；腳本遇 429 會重試並換仍然免費的模型。
-- 優惠內容由模型抽取，**請以官網條款為準**。
+- 優惠內容由模型抽取，**請以官網／App 條款為準**。
 - GitHub 免費 Actions 分鐘數對 Public 倉庫通常足夠；請勿打開 headed 瀏覽器或截圖，以免浪費時間與儲存空間。

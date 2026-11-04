@@ -20,7 +20,7 @@ jobs:
   scrape:
     name: Playwright scrape + AI parse
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
       AI_MODEL: ${{ secrets.AI_MODEL }}

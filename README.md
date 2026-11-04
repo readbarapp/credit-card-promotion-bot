@@ -65,6 +65,8 @@ Dashboard 以**列表**顯示每一則優惠，欄位為：`bank_name`（平台�
 
 `url` **只會是爬蟲在頁面上抓到的 `<a href>`**（相對路徑已拼成絕對 URL）。AI 若回傳清單以外的網址，會被強制改回該優惠詳情頁或總覽頁，禁止臆造連結。爬蟲會跟進各平台子頁，AI 會逐頁抽出任務條件；若當日額度用盡，會改讀詳情頁正文做規則抽取，而不是只抄連結標題。
 
+東亞「火熱優惠」詳情多數係官網 `<img>`。爬蟲會展開類型下拉、跟進優惠卡連結，然後把頁上的宣傳圖（不是 Playwright 截圖／錄影）交 OpenRouter 視覺模型做圖轉文，再用同一套欄位抽出 `rewards` / `conditions` / `deadline`。可選 Secret：`AI_VISION_MODEL`。
+
 ## 初始 7 大平台（官方總覽頁）
 
 1. 滙豐銀行 — https://www.redhotoffers.hsbc.com.hk/tc/home/（會跟進最新優惠等子頁）
@@ -72,7 +74,7 @@ Dashboard 以**列表**顯示每一則優惠，欄位為：`bank_name`（平台�
 3. 中銀香港 — https://www.bochk.com/tc/creditcard/promotions/offers.html
 4. 渣打銀行 — https://www.sc.com/hk/zh/credit-cards/offers/
 5. Mox Bank — https://mox.com/zh/promotions/
-6. 東亞銀行 — https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html
+6. 東亞銀行 — https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html（類型下拉選單 + 官網優惠圖轉文；**不是**強積金新聞頁）
 7. AlipayHK — https://www.alipayhk.com/zh/promotion/
 
 ## Step-by-step 設定

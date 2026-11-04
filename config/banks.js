@@ -92,11 +92,17 @@ module.exports = [
     "url": "https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html",
     "follow": {
       "enabled": true,
-      "maxPages": 5,
-      "include": ["promotion", "offer", "優惠", "獎賞", "credit-card"],
-      "skip": ["login", "privacy", "mpf", "/en/"]
+      "maxPages": 6,
+      "include": ["credit-card", "welcome-offer", "promotion", "優惠"],
+      "skip": ["login", "privacy", "mpf", "/en/", "bea-mpf-"]
+    },
+    "imageOffers": {
+      "enabled": true,
+      "maxOffers": 6,
+      "maxImagesPerOffer": 4
     },
     "sourceHint": "web",
+    "sourceNote": "信用卡「火熱優惠」要用類型下拉選單，詳情多為官網宣傳圖。爬蟲會讀取頁上的 <img src> 交 OpenRouter 做圖轉文，唔會用 Playwright 截圖。",
     "enabled": true
   },
   {

@@ -18,6 +18,7 @@ const {
   buildDashboardPayload,
   writeOutputs,
 } = require("./ai-parser");
+const { pickOfferImages, extractListingOfferCards } = require("./offer-images");
 
 const banks = require("../config/banks.js");
 
@@ -226,10 +227,31 @@ async function collectPageContent(page) {
       .replace(/\n{3,}/g, "\n\n")
       .trim();
 
+    const images = [];
+    const seenImg = new Set();
+    const imgRoot = root || document.body;
+    for (const img of imgRoot.querySelectorAll("img[src]")) {
+      const raw = img.getAttribute("src");
+      if (!raw) continue;
+      let src;
+      try {
+        src = new URL(raw, location.href).href;
+      } catch {
+        continue;
+      }
+      if (seenImg.has(src)) continue;
+      seenImg.add(src);
+      images.push({
+        src,
+        alt: (img.getAttribute("alt") || "").replace(/\s+/g, " ").trim().slice(0, 180),
+      });
+    }
+
     return {
       title: document.title || "",
       text,
       links,
+      images,
     };
   });
 }
@@ -268,7 +290,36 @@ async function visitAndCollect(page, url, options = {}) {
     title: content.title,
     text: content.text,
     links: content.links,
+    images: pickOfferImages(content.images, 8),
   };
+}
+
+async function expandCategoryDropdowns(page) {
+  const trigger = page.locator(".select-option-swiper-dropdown .selected-item").first();
+  const items = page.locator(".select-option-swiper-dropdown .dropdown-menu-item");
+  const count = await items.count();
+  if (!count) return 0;
+  for (let i = 0; i < count; i += 1) {
+    try {
+      if (await trigger.isVisible({ timeout: 800 }).catch(() => false)) {
+        await trigger.click({ timeout: 1500 });
+      }
+      await items.nth(i).click({ timeout: 1500 });
+      const more = page.locator("a.load-more").first();
+      if (await more.isVisible({ timeout: 400 }).catch(() => false)) {
+        await more.click({ timeout: 1000 }).catch(() => {});
+      }
+      await new Promise((r) => setTimeout(r, 350));
+    } catch {
+      /* 某個類型點唔到就跳過 */
+    }
+  }
+  return count;
+}
+
+async function collectImageOfferCards(page, listingUrl) {
+  const html = await page.content();
+  return extractListingOfferCards(html, listingUrl || page.url());
 }
 
 async function scrapeBank(page, bank) {
@@ -287,13 +338,36 @@ async function scrapeBank(page, bank) {
     ? await collectClickHrefs(page, bank.follow && bank.follow.clickNames)
     : [];
   const seedLinks = (listing.links || []).concat(clickHrefs.map((href) => ({ href, text: "nav" })));
-  const followUrls = pickFollowUrls(bank, seedLinks, listing.finalUrl || bank.url);
+  let followUrls = pickFollowUrls(bank, seedLinks, listing.finalUrl || bank.url);
+
+  if (bank.imageOffers && bank.imageOffers.enabled !== false) {
+    try {
+      const n = await expandCategoryDropdowns(page);
+      const cards = await collectImageOfferCards(page, listing.finalUrl || bank.url);
+      const maxOffers = Math.max(1, Number(bank.imageOffers.maxOffers || 6));
+      const cardUrls = cards.map((c) => c.href).slice(0, maxOffers);
+      const cardTags = new Map(cards.map((c) => [c.href, c.tag]));
+      console.log(`[scrape] ${bank.name} 下拉優惠類型 ${n} 個、優惠卡 ${cards.length} 張，跟進 ${cardUrls.length} 頁`);
+      const merged = [];
+      const seenFollow = new Set();
+      for (const url of cardUrls.concat(followUrls)) {
+        if (!url || seenFollow.has(url)) continue;
+        seenFollow.add(url);
+        merged.push(url);
+      }
+      followUrls = merged.slice(0, Math.max(maxOffers, followUrls.length));
+      listing._cardTags = cardTags;
+    } catch (err) {
+      console.warn(`[scrape] ${bank.name} 下拉優惠卡收集失敗：${err.message}`);
+    }
+  }
   const sectionRecords = [
     {
       kind: "listing",
       url: listing.finalUrl || bank.url,
       title: listing.title || bank.name,
       text: listing.text || "",
+      images: listing.images || [],
     },
   ];
   const textBlocks = listing.text ? [`【總覽】${listing.finalUrl}\n${listing.text}`] : [];
@@ -306,13 +380,19 @@ async function scrapeBank(page, bank) {
       const sub = await visitAndCollect(page, url, {
         waitMs: bank.waitMs || 1200,
       });
-      if (sub.text && sub.text.length >= 40) {
-        textBlocks.push(`【子頁 ${sub.title || url}】${sub.finalUrl}\n${sub.text}`);
+      const images = sub.images || [];
+      if ((sub.text && sub.text.length >= 40) || images.length) {
+        const imageNotes = images.length
+          ? `\n【官網優惠圖 ${images.length} 張】\n${images.map((img) => img.src).join("\n")}`
+          : "";
+        textBlocks.push(`【子頁 ${sub.title || url}】${sub.finalUrl}\n${sub.text || ""}${imageNotes}`);
         sectionRecords.push({
           kind: "detail",
           url: sub.finalUrl || url,
           title: sub.title || "",
-          text: sub.text,
+          text: sub.text || "",
+          images,
+          category: (listing._cardTags && listing._cardTags.get(url)) || "",
         });
       }
       for (const link of sub.links) {
@@ -328,7 +408,8 @@ async function scrapeBank(page, bank) {
   }
 
   const combined = textBlocks.join("\n\n");
-  if (combined.replace(/\s/g, "").length < 80) {
+  const imageCount = sectionRecords.reduce((n, s) => n + ((s.images || []).length), 0);
+  if (combined.replace(/\s/g, "").length < 80 && imageCount === 0) {
     throw new Error(
       `頁面文字過少（${combined.length} 字），可能被攔截或結構變更`,
     );

@@ -19,6 +19,7 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const { fetchImageDataUrl, pickOfferImages } = require("./offer-images");
 
 let lastAiBackend = "heuristic";
 
@@ -441,6 +442,7 @@ async function callOpenAiCompat({
   apiKey,
   model,
   prompt,
+  userContent,
   headers = {},
   extraBody = {},
   jsonMode = true,
@@ -454,7 +456,7 @@ async function callOpenAiCompat({
         role: "system",
         content: '只輸出合法 JSON 物件，格式必須是 {"offers":[...]}，不要 markdown、不要解說。',
       },
-      { role: "user", content: prompt },
+      { role: "user", content: userContent || prompt },
     ],
     ...extraBody,
   };
@@ -482,6 +484,7 @@ async function callOpenAiCompat({
         apiKey,
         model,
         prompt,
+        userContent,
         headers,
         extraBody,
         jsonMode: false,
@@ -577,6 +580,53 @@ function listProviders() {
     console.warn(`[ai] AI_PROVIDER=${preferred} 但未找到對應金鑰，改用已設定的供應商`);
   }
   return catalog;
+}
+
+function listVisionProviders() {
+  const openRouterKey = envKey("OPENROUTER_API_KEY", "OPENROUTER_KEY");
+  if (!openRouterKey) return [];
+  return [
+    {
+      id: "openrouter-vision",
+      models: uniq([
+        process.env.AI_VISION_MODEL,
+        "nvidia/nemotron-3.5-super-vl:free",
+        "google/gemma-4-26b-a4b-it:free",
+      ]),
+      call: (model, userContent) =>
+        callOpenAiCompat({
+          baseUrl: "https://openrouter.ai/api/v1",
+          apiKey: openRouterKey,
+          model,
+          prompt: "",
+          userContent,
+          headers: {
+            "HTTP-Referer": "https://github.com/readbarapp/credit-card-promotion-bot",
+            "X-Title": "HK Bank Promo Dashboard",
+          },
+        }),
+    },
+  ];
+}
+
+function buildVisionPrompt(bank, section) {
+  return `你是香港銀行優惠圖轉文抽取器。以下圖片是官網優惠詳情頁上的官方 <img>（不是瀏覽器截圖）。請讀圖中的繁體中文，抽出優惠。
+
+平台名稱：${bank.name}
+本頁 URL：${section.url}
+分類：${section.category || "未標示"}
+頁面標題：${section.title || ""}
+
+【硬性規則】
+1. 若圖中只描述一個推廣，offers 只放 1 則。
+2. 每一則必須填齊：bank_name, title, rewards, conditions, requires_registration, deadline, url。
+3. bank_name 固定為「${bank.name}」。
+4. url 必須是本頁 URL（${section.url}）。禁止發明網址。
+5. rewards 說明實際獎賞。
+6. conditions 從圖中條款抽出任務條件陣列。
+7. requires_registration 只能 Yes 或 No。
+8. deadline 用 YYYY-MM-DD 或 "額滿即止"。
+9. 只輸出 JSON：{"offers":[...]}。`;
 }
 
 function parseJsonPayload(text) {
@@ -788,6 +838,52 @@ function pushUniqueOffers(bucket, seen, offers) {
   }
 }
 
+async function extractFromOfferImages(bank, section, harvested) {
+  const visionProviders = listVisionProviders();
+  const images = pickOfferImages(section.images || [], Number(process.env.AI_MAX_IMAGES_PER_OFFER || 4));
+  if (!visionProviders.length || !images.length) return [];
+
+  const dataUrls = [];
+  for (const img of images) {
+    try {
+      const dataUrl = await fetchImageDataUrl(img.src, section.url || bank.url);
+      dataUrls.push(dataUrl);
+    } catch (err) {
+      console.warn(`[ai] ${bank.name} 讀取官網優惠圖失敗：${img.src} → ${err.message}`);
+    }
+  }
+  if (!dataUrls.length) return [];
+
+  const userContent = [
+    { type: "text", text: buildVisionPrompt(bank, section) },
+    ...dataUrls.map((url) => ({ type: "image_url", image_url: { url } })),
+  ];
+
+  let lastError;
+  for (const provider of visionProviders) {
+    for (const model of provider.models) {
+      try {
+        if (aiBudgetLeft() <= 0) break;
+        console.log(`[ai] ${bank.name} 圖轉文 → ${provider.id}/${model}（${dataUrls.length} 張官網圖）`);
+        const text = await pacedCall(() => provider.call(model, userContent));
+        const offers = toOffers(bank, parseJsonPayload(text), harvested, {
+          finalUrl: section.url || bank.url,
+        });
+        if (offers.length) {
+          lastAiBackend = provider.id;
+          return offers;
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`[ai] ${bank.name} 圖轉文失敗 ${provider.id}/${model}：${err.message}`);
+        if (err.status === 404) continue;
+      }
+    }
+  }
+  if (lastError) throw lastError;
+  return [];
+}
+
 async function extractOffersWithAi(bank, scrapeResult) {
   const harvestedAll = filterHarvestedLinks(
     scrapeResult.links,
@@ -796,7 +892,9 @@ async function extractOffersWithAi(bank, scrapeResult) {
   const providers = listProviders();
   const sections = Array.isArray(scrapeResult.sections) ? scrapeResult.sections : [];
   const details = sections.filter(
-    (s) => s.kind === "detail" && String(s.text || "").trim().length >= 40,
+    (s) =>
+      s.kind === "detail" &&
+      (String(s.text || "").trim().length >= 40 || (s.images || []).length > 0),
   );
   const collected = [];
   const seen = new Set();
@@ -811,6 +909,20 @@ async function extractOffersWithAi(bank, scrapeResult) {
         scrapeResult.links,
         section.url || scrapeResult.finalUrl || bank.url,
       );
+      if ((section.images || []).length) {
+        try {
+          const visionOffers = await extractFromOfferImages(bank, section, harvested);
+          if (visionOffers.length) {
+            usedAi = true;
+            pushUniqueOffers(collected, seen, visionOffers);
+            continue;
+          }
+        } catch (err) {
+          lastError = err;
+          console.warn(`[ai] ${bank.name} 官網圖轉文失敗，改試頁面文字：${section.url} → ${err.message}`);
+        }
+      }
+
       const prompt = buildSectionPrompt(
         bank,
         {

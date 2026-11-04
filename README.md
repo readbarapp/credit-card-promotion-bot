@@ -37,7 +37,9 @@ GitHub Pages  →  任何人打開網址即可閱讀
 3. GitHub 倉庫 **Settings → Secrets and variables → Actions** 新增 **`OPENROUTER_API_KEY`**（名稱必須一模一樣）
 4. 在 Dashboard 再跑一次爬蟲
 
-免費層約 20 次／分鐘、50 次／日，每日爬 7 間銀行夠用。腳本會用 `openrouter/free`，失敗則自動改打仍然免費的 Nemotron / Gemma 模型（舊的 `gpt-oss-20b:free` 已 404，不要再用）。
+免費層約 20 次／分鐘、50 次／日。腳本會用 `openrouter/free`，失敗則改打 `nvidia/nemotron-3.5-lightning:free`（舊的 `gpt-oss-20b:free` 已 404，不要再用）。
+
+**不要**在 OpenRouter 請求裡一次塞超過 3 個 `models` 後備；超過會 HTTP 400，整次爬蟲會跌去規則抽取，結果只剩優惠名稱、任務條件全空。本專案已改為逐個優惠詳情頁分析，並限制每輪 AI 呼叫次數以遷就免費額度。
 
 | 選項 | 香港 | 免費 | Secret 名稱 |
 |---|---|---|---|
@@ -59,7 +61,9 @@ GitHub Pages  →  任何人打開網址即可閱讀
 | `index.html` | 響應式 Dashboard + 管理面板 + Worker 控制台 |
 | `data.json` | 最新優惠資料（Pages 與前端皆讀此檔） |
 
-優惠卡片上的 `url` **只會是爬蟲在頁面上抓到的 `<a href>`**（相對路徑已拼成絕對 URL）。AI 若回傳清單以外的網址，會被強制改回總覽頁，禁止臆造連結。
+Dashboard 以**列表**顯示每一則優惠，欄位為：`bank_name`（平台名稱）、`title`（優惠主題）、`rewards`（獎賞詳情）、`conditions`（任務條件）、`requires_registration`（需否登記 Yes/No）、`deadline`（YYYY-MM-DD 或「額滿即止」）、`url`（官網原始連結）。
+
+`url` **只會是爬蟲在頁面上抓到的 `<a href>`**（相對路徑已拼成絕對 URL）。AI 若回傳清單以外的網址，會被強制改回該優惠詳情頁或總覽頁，禁止臆造連結。爬蟲會跟進各平台子頁，AI 會逐頁抽出任務條件；若當日額度用盡，會改讀詳情頁正文做規則抽取，而不是只抄連結標題。
 
 ## 初始 7 大平台（官方總覽頁）
 

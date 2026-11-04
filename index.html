@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="last-updated" content="4/11/2026 11:45:53">
+  <meta name="last-updated" content="4/11/2026 20:03:25">
   <title>香港銀行與支付優惠 Dashboard</title>
   <style>
     :root {
@@ -38,7 +38,7 @@
       position: relative;
       z-index: 2;
     }
-    .wrap { width: min(1180px, calc(100% - 24px)); margin: 0 auto; }
+    .wrap { width: min(1440px, calc(100% - 24px)); margin: 0 auto; }
     .header-row { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
     .kicker { letter-spacing: 0.18em; font-size: 12px; color: var(--gold); text-transform: uppercase; margin: 0 0 6px; }
     h1 { margin: 0; font-size: clamp(22px, 3vw, 32px); line-height: 1.25; }
@@ -79,7 +79,8 @@
     .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
     .console-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
     .muted { color: var(--muted); font-size: 13px; }
-    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; margin: 22px auto 40px; }
+    .layout { display: block; margin: 22px auto 18px; }
+    .side-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 18px; margin: 0 auto 40px; }
     .panel, .card, .howto {
       background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
     }
@@ -96,7 +97,20 @@
       border-radius: 14px; padding: 10px 12px; min-width: 210px;
     }
     .chip b { display: block; margin-bottom: 4px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .table-wrap { overflow: auto; margin-bottom: 12px; }
+    .result-count { margin: 0 0 8px; }
+    .result-table { width: 100%; min-width: 1100px; border-collapse: collapse; font-size: 13px; background: var(--card); }
+    .result-table th {
+      background: var(--navy); color: #fff; text-align: left; padding: 10px 12px;
+      font-size: 12px; letter-spacing: .04em; white-space: nowrap; position: sticky; top: 0;
+    }
+    .result-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .result-table tr.expired { opacity: .62; background: #f3efe6; }
+    .result-table tr:hover td { background: #fff8ea; }
+    .cell-title { min-width: 180px; font-weight: 750; }
+    .cell-rewards { min-width: 200px; }
+    .cell-conditions { min-width: 240px; }
+    .cell-url { min-width: 140px; word-break: break-all; }
     .offer { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
     .offer.expired { opacity: .62; }
     .badges { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -112,6 +126,7 @@
     details { border-top: 1px solid var(--line); padding-top: 10px; }
     summary { cursor: pointer; font-weight: 700; }
     .checks { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+    .result-table .checks { margin: 0; }
     .checks li { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
     .checks input { width: auto; margin-top: 3px; }
     .howto, .side-card { padding: 16px; margin-bottom: 12px; }
@@ -156,7 +171,7 @@
     .badge.app { background: #e8eefc; color: #1e3a8a; }
     dialog { max-height: calc(100vh - 24px); overflow: auto; }
     @media (max-width: 900px) {
-      .layout, .filters, .row-2, .console { grid-template-columns: 1fr; }
+      .layout, .filters, .row-2, .console, .side-grid { grid-template-columns: 1fr; }
       .console-actions { justify-content: flex-start; }
     }
   </style>
@@ -206,10 +221,27 @@
             <option value="expired">已過期 / Expired</option>
           </select>
         </section>
-        <div class="grid" id="cards"></div>
+        <p class="muted result-count" id="result-count"></p>
+        <div class="table-wrap panel">
+          <table class="result-table" aria-label="優惠列表">
+            <thead>
+              <tr>
+                <th>平台名稱<br><span style="font-weight:500;opacity:.8">bank_name</span></th>
+                <th>優惠主題<br><span style="font-weight:500;opacity:.8">title</span></th>
+                <th>獎賞詳情<br><span style="font-weight:500;opacity:.8">rewards</span></th>
+                <th>任務條件<br><span style="font-weight:500;opacity:.8">conditions</span></th>
+                <th>需否登記<br><span style="font-weight:500;opacity:.8">requires_registration</span></th>
+                <th>截止日期<br><span style="font-weight:500;opacity:.8">deadline</span></th>
+                <th>官網原始連結<br><span style="font-weight:500;opacity:.8">url</span></th>
+              </tr>
+            </thead>
+            <tbody id="cards"></tbody>
+          </table>
+        </div>
         <div class="empty panel" id="empty" hidden>沒有符合條件的優惠。請調整篩選，或由控制台觸發一次爬蟲。</div>
       </div>
-      <aside>
+    </div>
+    <div class="side-grid">
         <section class="howto" id="howto">
           <h2>如何新增／修改監控平台</h2>
           <p class="muted">GitHub Pages 是靜態網站，清單存在倉庫的 <code>config/banks.js</code>。</p>
@@ -230,7 +262,6 @@
           <h2>最近錯誤 Log</h2>
           <div id="error-side" class="muted">尚無錯誤。</div>
         </section>
-      </aside>
     </div>
     <footer class="wrap">資料由自動化爬蟲與 AI（香港預設 OpenRouter）抽取產生，僅供參考，實際條款以各平台官網為準。優惠任務勾選狀態只保存在你的瀏覽器。</footer>
   </div>
@@ -294,7 +325,7 @@
     </form>
   </dialog>
   <div class="toast" id="toast" role="status"></div>
-  <script type="application/json" id="embedded-data">{"lastUpdated":"2026-11-04T03:45:53.000Z","lastUpdatedHkt":"4/11/2026 11:45:53","generatedBy":"scripts/scraper.js + heuristic","banks":[{"id":"hsbc","name":"滙豐銀行","nameEn":"HSBC","url":"https://www.redhotoffers.hsbc.com.hk/tc/home/","extraUrls":[],"follow":null,"sourceHint":"web","sourceNote":"","enabled":true},{"id":"hangseng","name":"恒生銀行","nameEn":"Hang Seng","url":"https://www.hangseng.com/zh-hk/personal/cards/spending-privileges/offers-of-the-month-all/month-creditcard/","extraUrls":[],"follow":null,"sourceHint":"web","sourceNote":"","enabled":true},{"id":"boc","name":"中銀香港","nameEn":"BOCHK","url":"https://www.bochk.com/tc/creditcard/promotions/offers.html","extraUrls":[],"follow":null,"sourceHint":"web","sourceNote":"","enabled":true},{"id":"sc","name":"渣打銀行","nameEn":"Standard Chartered","url":"https://www.sc.com/hk/zh/credit-cards/offers/","extraUrls":[],"follow":null,"sourceHint":"web","sourceNote":"","enabled":true},{"id":"mox","name":"Mox Bank","nameEn":"Mox","url":"https://mox.com/zh/promotions/","extraUrls":[],"follow":null,"sourceHint":"app","sourceNote":"Mox Earn 商戶優惠主要在 App 內；網站只公開部分推廣頁，爬蟲會跟進網站上的子頁，但無法進入 App。","enabled":true},{"id":"bea","name":"東亞銀行","nameEn":"BEA","url":"https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html","extraUrls":[],"follow":null,"sourceHint":"web","sourceNote":"","enabled":true},{"id":"alipayhk","name":"AlipayHK","nameEn":"AlipayHK","url":"https://www.alipayhk.com/zh/promotion/","extraUrls":[],"follow":null,"sourceHint":"app","sourceNote":"AlipayHK 即減券、快閃優惠多數只在 App 領取；官網優惠專區資訊有限，無法代替打開 App。","enabled":true}],"errors":[{"bank_id":"alipayhk","bank_name":"AlipayHK","stage":"scrape","error":"頁面文字過少（14 字），可能被攔截或結構變更"}],"stats":{"total":36,"active":36,"isNew":36,"expiring7d":0,"durationMs":369512},"offers":[{"id":"408683cd9cb1e92f","bank_id":"hsbc","bank_name":"滙豐銀行","title":"Skip to content","rewards":"Skip to content","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.redhotoffers.hsbc.com.hk/tc/home/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"5dc3cb3658a6a4c7","bank_id":"hsbc","bank_name":"滙豐銀行","title":"每天Banking Reward You!","rewards":"每天Banking Reward You!","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/everydaybankingrewardsyou/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"456e3f973c5fd104","bank_id":"hsbc","bank_name":"滙豐銀行","title":"「獎賞錢」定期存款","rewards":"「獎賞錢」定期存款","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/rctmd/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"3c8d6053e5ac6af5","bank_id":"hsbc","bank_name":"滙豐銀行","title":"滙豐easy信用卡 - LINK盡著數So Easy","rewards":"滙豐easy信用卡 - LINK盡著數So Easy","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/visa-platinum-asw-promotion/moneyback/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"9783edf1ee062d6c","bank_id":"hsbc","bank_name":"滙豐銀行","title":"滙豐EveryMile信用卡專享優惠","rewards":"滙豐EveryMile信用卡專享優惠","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/everymile-spending-offer/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"e40c7100cdf5aefd","bank_id":"hsbc","bank_name":"滙豐銀行","title":"最紅旅遊優惠","rewards":"最紅旅遊優惠","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/red-hot-travel-special/travel-offers/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"e4cef6a17a1c812b","bank_id":"hsbc","bank_name":"滙豐銀行","title":"Travel Guru會員計劃","rewards":"Travel Guru會員計劃","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/travel-guru/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"f774ec351228a20c","bank_id":"hsbc","bank_name":"滙豐銀行","title":"日本菜及其他","rewards":"日本菜及其他","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/red-hot-dining-special/q4-offers/japanese-and-other-cuisine/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"e7ebf1c9657a9e75","bank_id":"hsbc","bank_name":"滙豐銀行","title":"2026夏季香港餐廳周 —「贏家版」","rewards":"2026夏季香港餐廳周 —「贏家版」","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/red-hot-dining-special/dining-city/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"debf1db0041c0e26","bank_id":"hsbc","bank_name":"滙豐銀行","title":"最紅簽賬獎賞 - 中國內地","rewards":"最紅簽賬獎賞 - 中國內地","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/red-hot-overseas-spending-rewards/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"011bae06083ac464","bank_id":"hangseng","bank_name":"恒生銀行","title":"個人e-Banking","rewards":"個人e-Banking","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.hangseng.com/zh-hk/personal/cards/spending-privileges/offers-of-the-month-all/month-creditcard/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"07ad98c9dedd323c","bank_id":"hangseng","bank_name":"恒生銀行","title":"商戶全年優惠","rewards":"商戶全年優惠","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.hangseng.com/zh-hk/personal/cards/spending-privileges/year-round-offers/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"e0e0373c4df81c82","bank_id":"hangseng","bank_name":"恒生銀行","title":"簽賬分期最新","rewards":"簽賬分期最新","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.hangseng.com/zh-hk/personal/cards/spending-instalment/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"fcc3d68edcca5567","bank_id":"boc","bank_name":"中銀香港","title":"跨境現金管理","rewards":"跨境現金管理","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.bochk.com/tc/corporate/crossborder/cashmgt.html","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"984c7512128ab42c","bank_id":"boc","bank_name":"中銀香港","title":"現金管理服務","rewards":"現金管理服務","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.bochk.com/tc/corporate/cashmgt.html","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"aedac33239dbec49","bank_id":"sc","bank_name":"渣打銀行","title":"Skip to Main Content","rewards":"Skip to Main Content","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.sc.com/hk/zh/credit-cards/offers/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"a699713b43749e76","bank_id":"sc","bank_name":"渣打銀行","title":"活期存款推廣","rewards":"活期存款推廣","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.sc.com/hk/zh/deposits/savings-promotion/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"5323c41ba8ef9436","bank_id":"sc","bank_name":"渣打銀行","title":"定期存款推廣","rewards":"定期存款推廣","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.sc.com/hk/zh/deposits/time-deposits-promotion/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"a3d36f23c9aa4cd2","bank_id":"sc","bank_name":"渣打銀行","title":"The Good Life 全年優惠","rewards":"The Good Life 全年優惠","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.sc.com/hk/zh/promotions/the-good-life-year-round-offers/?intcid=web_listing-sc_com_top_nav-na-staticmedia_others-sng-na-cc_the_good_life_year_round_offers-sc_com_organic-hk-zh","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"7c2c383f5962c7d7","bank_id":"sc","bank_name":"渣打銀行","title":"查看全部信用卡優惠","rewards":"查看全部信用卡優惠","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.sc.com/hk/zh/credit-cards/offers/?intcid=web_listing-sc_com_top_nav-na-staticmedia_others-sng-na-cc_view_all_credit_card_promotions-sc_com_organic-hk-zh","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"79d785b786828be6","bank_id":"sc","bank_name":"渣打銀行","title":"360° 全面賞","rewards":"360° 全面賞","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.sc.com/hk/zh/promotions/credit-cards/new-reward-redemption/?intcid=web_listing-sc_com_top_nav-na-staticmedia_others-sng-na-cc_360_rewards-sc_com_organic-hk-zh","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"10f22efcb15a8ede","bank_id":"sc","bank_name":"渣打銀行","title":"即時現金貸款","rewards":"即時現金貸款","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.sc.com/hk/zh/credit-cards/instalment-credit-program/?intcid=web_listing-sc_com_top_nav-na-staticmedia_others-sng-na-loans_instant_loan-sc_com_organic-hk-zh","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"64996be7b0b4eabe","bank_id":"sc","bank_name":"渣打銀行","title":"信用卡現金套現","rewards":"信用卡現金套現","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.sc.com/hk/zh/credit-cards/instalment-credit-program/?intcid=web_listing-sc_com_top_nav-na-staticmedia_others-sng-na-loans_get_cash_from_credit_card-sc_com_organic-hk-zh","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"d3f51c416eb77369","bank_id":"sc","bank_name":"渣打銀行","title":"信用卡簽賬分期","rewards":"信用卡簽賬分期","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.sc.com/hk/zh/credit-cards/statement-instalment-plan/?intcid=web_listing-sc_com_top_nav-na-staticmedia_others-sng-na-loans_split_your_credit_card_bills-sc_com_organic-hk-zh","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"2b4ffa6f632afe31","bank_id":"sc","bank_name":"渣打銀行","title":"按揭「亞洲萬里通」里數獎賞","rewards":"按揭「亞洲萬里通」里數獎賞","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.sc.com/hk/zh/mortgages/mortgage-asia-miles/?intcid=web_listing-sc_com_top_nav-na-staticmedia_others-sng-na-mortgages_mortgage_asia_miles_reward-sc_com_organic-hk-zh","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"002077276f15df7c","bank_id":"mox","bank_name":"Mox Bank","title":"Invest","rewards":"Invest","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://mox.com/zh/promotions/?category=invest","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"7ecdc2464a53710b","bank_id":"mox","bank_name":"Mox Bank","title":"Insure","rewards":"Insure","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://mox.com/zh/promotions/?category=insure","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"8f1e72611ed3c35c","bank_id":"mox","bank_name":"Mox Bank","title":"外匯存款/匯款","rewards":"外匯存款/匯款","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://mox.com/zh/promotions/?category=fx-savings-remit","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"26a92bec67e7ffbc","bank_id":"mox","bank_name":"Mox Bank","title":"Mox Credit","rewards":"Mox Credit","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://mox.com/zh/promotions/?category=mox-credit","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"62cbc399dfff55d0","bank_id":"mox","bank_name":"Mox Bank","title":"隨你飛旅遊保2兑1亞洲萬里通獎賞2026年8月至2026年12月推廣","rewards":"隨你飛旅遊保2兑1亞洲萬里通獎賞2026年8月至2026年12月推廣","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://mox.com/static/202608_TravelInsuranceAsiaMiles2to1Promotion.pdf","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"9283e8bfe799b694","bank_id":"mox","bank_name":"Mox Bank","title":"存款 轉用Mox出糧，輕鬆解鎖1.5%存款額外年利率 立即轉用Mox出糧，為港元/美元存款解鎖1.5%額外年利率，等你輕輕鬆鬆賺更多！💸 了解更多","rewards":"存款 轉用Mox出糧，輕鬆解鎖1.5%存款額外年利率 立即轉用Mox出糧，為港元/美元存款解鎖1.5%額外年利率，等你輕輕鬆鬆賺更多！💸 了解更多","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://mox.com/zh/promotions/mox-payroll/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"8dfb847eb4addffe","bank_id":"mox","bank_name":"Mox Bank","title":"優惠 東京馬拉松 2027 大抽獎活動結果公布 了解更多","rewards":"優惠 東京馬拉松 2027 大抽獎活動結果公布 了解更多","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://mox.com/zh/promotions/Tokyo_Marathon_Winner_Announcement/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"7c4e180adc82d4d3","bank_id":"mox","bank_name":"Mox Bank","title":"優惠 2025香港人最愛出遊地點競猜大抽獎活動結果公布 了解更多","rewards":"優惠 2025香港人最愛出遊地點競猜大抽獎活動結果公布 了解更多","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://mox.com/zh/promotions/2025-hk-peoples-favorite-travel-destination-lucky-draw-winner-announcement/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"dfcd4237a04cf852","bank_id":"mox","bank_name":"Mox Bank","title":"優惠 由你專享全年優惠！ 用Mox信用卡享盡全年優惠兼賺無上限CashBack或無上限「亞洲萬里通」 里數！ 了解更多","rewards":"優惠 由你專享全年優惠！ 用Mox信用卡享盡全年優惠兼賺無上限CashBack或無上限「亞洲萬里通」 里數！ 了解更多","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://mox.com/zh/promotions/year-round-offers/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"231a75b14c15a7e8","bank_id":"bea","bank_name":"東亞銀行","title":"最新消息及推廣","rewards":"最新消息及推廣","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.hkbea.com/html/tc/bea-mpf-latest-news-and-promotions.html","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"27b052e3925afbcb","bank_id":"bea","bank_name":"東亞銀行","title":"旅遊樂全保保費75折及額外優惠（此保險計劃由藍十字承保，東亞銀行為藍十字之獲委任保險代理商。）","rewards":"旅遊樂全保保費75折及額外優惠（此保險計劃由藍十字承保，東亞銀行為藍十字之獲委任保險代理商。）","conditions":[],"requires_registration":"No","deadline":"額滿即止","url":"https://www.hkbea.com/html/tc/travel.html","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"}]}</script>
+  <script type="application/json" id="embedded-data">{"lastUpdated":"2026-11-04T12:03:25.000Z","lastUpdatedHkt":"4/11/2026 20:03:25","generatedBy":"scripts/scraper.js + heuristic (preview until next scrape)","banks":[{"id":"hsbc","name":"滙豐銀行","nameEn":"HSBC","url":"https://www.redhotoffers.hsbc.com.hk/tc/home/","extraUrls":["https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/"],"follow":{"enabled":true,"maxPages":6,"include":["latest-offers","offer","promo","優惠","獎賞"],"skip":["login","privacy","cookie","/en/","personal-information"]},"sourceHint":"web","sourceNote":"","enabled":true},{"id":"hangseng","name":"恒生銀行","nameEn":"Hang Seng","url":"https://www.hangseng.com/zh-hk/personal/cards/spending-privileges/offers-of-the-month-all/month-creditcard/","extraUrls":[],"follow":{"enabled":true,"maxPages":5,"include":["offers","privileges","promotion","優惠","獎賞"],"skip":["prime-rates","/en-hk/","/zh-cn/","login","privacy"]},"sourceHint":"web","sourceNote":"","enabled":true},{"id":"boc","name":"中銀香港","nameEn":"BOCHK","url":"https://www.bochk.com/tc/creditcard/promotions/offers.html","extraUrls":[],"follow":{"enabled":true,"maxPages":5,"include":["promotion","offer","優惠","獎賞","creditcard"],"skip":["login","privacy","/en/","corporate"]},"sourceHint":"web","sourceNote":"","enabled":true},{"id":"sc","name":"渣打銀行","nameEn":"Standard Chartered","url":"https://www.sc.com/hk/zh/credit-cards/offers/","extraUrls":[],"follow":{"enabled":true,"maxPages":5,"include":["credit-cards","promotion","offer","優惠","獎賞"],"skip":["login","privacy","/en/","mortgages","deposits"]},"sourceHint":"web","sourceNote":"","enabled":true},{"id":"mox","name":"Mox Bank","nameEn":"Mox","url":"https://mox.com/zh/promotions/","extraUrls":[],"follow":{"enabled":true,"maxPages":5,"include":["promotions","promotion","優惠"],"skip":["category=","login","privacy",".pdf"]},"sourceHint":"app","sourceNote":"Mox Earn 商戶優惠主要在 App 內；網站只公開部分推廣頁，爬蟲會跟進網站上的子頁，但無法進入 App。","enabled":true},{"id":"bea","name":"東亞銀行","nameEn":"BEA","url":"https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html","extraUrls":[],"follow":{"enabled":true,"maxPages":5,"include":["promotion","offer","優惠","獎賞","credit-card"],"skip":["login","privacy","mpf","/en/"]},"sourceHint":"web","sourceNote":"","enabled":true},{"id":"alipayhk","name":"AlipayHK","nameEn":"AlipayHK","url":"https://www.alipayhk.com/zh/promotion/","extraUrls":[],"follow":{"enabled":true,"maxPages":4,"include":["promotion","promo","優惠"],"skip":["login","privacy"]},"sourceHint":"app","sourceNote":"AlipayHK 即減券、快閃優惠多數只在 App 領取；官網優惠專區資訊有限，無法代替打開 App。","enabled":true}],"errors":[],"stats":{"total":2,"active":2,"isNew":2,"expiring7d":0,"durationMs":1},"offers":[{"id":"5dc3cb3658a6a4c7","bank_id":"hsbc","bank_name":"滙豐銀行","title":"每天Banking Reward You!","rewards":"成功登記可享高達 8% 現金回贈。","conditions":["須於 HSBC HK App 登記參加。","推廣期內以指定滙豐信用卡簽賬滿 HK$3,000。","指定商戶消費方可獲獎賞。"],"requires_registration":"Yes","deadline":"2026-12-31","url":"https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/everydaybankingrewardsyou/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"},{"id":"456e3f973c5fd104","bank_id":"hsbc","bank_name":"滙豐銀行","title":"「獎賞錢」定期存款","rewards":"可享額外獎賞錢回贈。","conditions":["須持有合資格滙豐戶口。"],"requires_registration":"No","deadline":"2026-11-30","url":"https://www.redhotoffers.hsbc.com.hk/tc/latest-offers/rctmd/","firstSeenDate":"2026-11-04","lastSeenDate":"2026-11-04","isNew":true,"status":"active"}]}</script>
   <script>
     const KEYS = {
       pat: "hkpromo.github.pat",
@@ -462,7 +493,10 @@
 
       const list = filteredOffers();
       $("empty").hidden = list.length > 0;
-      $("cards").innerHTML = list.map(renderCard).join("");
+      $("result-count").textContent = list.length
+        ? `顯示 ${list.length} 則優惠（列表欄位：平台名稱、優惠主題、獎賞詳情、任務條件、需否登記、截止日期、官網原始連結）`
+        : "";
+      $("cards").innerHTML = list.map(renderRow).join("");
       $("cards").querySelectorAll("input[type=checkbox]").forEach((box) => {
         box.addEventListener("change", onCheck);
       });
@@ -472,7 +506,7 @@
       return (state.data.banks || []).find((b) => b.id === bankId) || {};
     }
 
-    function renderCard(o) {
+    function renderRow(o) {
       const left = daysUntil(o.deadline);
       const hot = left !== null && left >= 0 && left <= 7;
       const meta = bankMeta(o.bank_id);
@@ -484,26 +518,26 @@
               <span>${escapeHtml(c)}</span>
             </li>`).join("")
         : "<li class='muted'>沒有抽出獨立任務條件。</li>";
+      const registration = o.requires_registration === "Yes" ? "Yes" : "No";
       return `
-        <article class="card offer ${o.status === "expired" ? "expired" : ""}">
-          <div class="badges">
+        <tr class="${o.status === "expired" ? "expired" : ""}">
+          <td>
             <span class="badge bank">${escapeHtml(o.bank_name)}</span>
-            ${o.isNew ? `<span class="badge new">🆕 New</span>` : ""}
-            ${hot ? `<span class="badge hot">🔴 ${left} 天內到期</span>` : ""}
-            ${o.status === "expired" ? `<span class="badge gone">Expired</span>` : ""}
-            ${o.requires_registration === "Yes" ? `<span class="badge">須登記</span>` : ""}
-            ${meta.sourceHint === "app" ? `<span class="badge app">詳情主要在 App</span>` : ""}
-          </div>
-          <h3>${escapeHtml(o.title)}</h3>
-          <p class="rewards">${escapeHtml(o.rewards || "")}</p>
-          <p class="deadline ${hot ? "hot" : ""}">截止：${escapeHtml(o.deadline || "額滿即止")}${left === 0 ? "（今日到期）" : ""}</p>
-          ${meta.sourceNote ? `<p class="muted">${escapeHtml(meta.sourceNote)}</p>` : ""}
-          <a href="${escapeAttr(o.url)}" target="_blank" rel="noopener">查看官網原始連結</a>
-          <details>
-            <summary>任務條件 Checklist</summary>
-            <ul class="checks">${conditions}</ul>
-          </details>
-        </article>`;
+            ${meta.sourceHint === "app" ? `<div><span class="badge app">App 為主</span></div>` : ""}
+          </td>
+          <td class="cell-title">
+            <div class="badges">
+              ${o.isNew ? `<span class="badge new">🆕 New</span>` : ""}
+              ${o.status === "expired" ? `<span class="badge gone">Expired</span>` : ""}
+            </div>
+            ${escapeHtml(o.title)}
+          </td>
+          <td class="cell-rewards">${escapeHtml(o.rewards || "")}</td>
+          <td class="cell-conditions"><ul class="checks">${conditions}</ul></td>
+          <td>${escapeHtml(registration)}</td>
+          <td class="deadline ${hot ? "hot" : ""}">${escapeHtml(o.deadline || "額滿即止")}${hot ? `<div class="badge hot">🔴 ${left} 天內到期</div>` : ""}</td>
+          <td class="cell-url"><a href="${escapeAttr(o.url)}" target="_blank" rel="noopener">${escapeHtml(o.url)}</a></td>
+        </tr>`;
     }
 
     function onCheck(ev) {

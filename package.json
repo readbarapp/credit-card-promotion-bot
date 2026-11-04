@@ -8,7 +8,8 @@
   },
   "scripts": {
     "scrape": "node scripts/scraper.js",
-    "check": "node --check scripts/scraper.js && node --check scripts/ai-parser.js && node --check config/banks.js"
+    "check": "node --check scripts/scraper.js && node --check scripts/ai-parser.js && node --check config/banks.js",
+    "test": "node scripts/ai-parser.test.js"
   },
   "dependencies": {
     "playwright": "^1.55.0"

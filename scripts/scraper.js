@@ -163,6 +163,18 @@ function pickFollowUrls(bank, links, listingUrl) {
     out.push(canonical);
   }
 
+  const skip = (follow.skip || [
+    "prime-rates",
+    "/en-hk/",
+    "/zh-cn/",
+    "category=",
+    "login",
+    "signin",
+    "privacy",
+    "cookie",
+    "career",
+  ]).map((s) => String(s).toLowerCase());
+
   for (const link of links || []) {
     if (out.length >= maxPages) break;
     const href = link && link.href;
@@ -172,8 +184,8 @@ function pickFollowUrls(bank, links, listingUrl) {
     if (!/^https?:/i.test(canonical)) continue;
     if (!isAllowedHost(canonical, bank, listing)) continue;
     if (/\.(pdf|jpg|jpeg|png|gif|zip|mp4)(\?|$)/i.test(canonical)) continue;
-    if (/login|signin|privacy|cookie|career|recruit/i.test(canonical)) continue;
     const blob = `${canonical} ${link.text || ""}`.toLowerCase();
+    if (skip.some((key) => blob.includes(key))) continue;
     if (!include.some((key) => blob.includes(key))) continue;
     seen.add(canonical);
     out.push(canonical);
@@ -238,14 +250,15 @@ async function collectClickHrefs(page, names) {
   return found;
 }
 
-async function visitAndCollect(page, url) {
+async function visitAndCollect(page, url, options = {}) {
   const response = await page.goto(url, {
     waitUntil: "domcontentloaded",
     timeout: 60000,
   });
-  await new Promise((r) => setTimeout(r, 1200));
+  await new Promise((r) => setTimeout(r, options.waitMs || 1200));
   await dismissOverlays(page);
   await autoScroll(page);
+  await page.waitForLoadState("networkidle", { timeout: options.idleTimeout || 5000 }).catch(() => {});
   await new Promise((r) => setTimeout(r, 600));
   await dismissOverlays(page);
   const content = await collectPageContent(page);
@@ -260,26 +273,47 @@ async function visitAndCollect(page, url) {
 
 async function scrapeBank(page, bank) {
   console.log(`[scrape] ${bank.name} → ${bank.url}`);
-  const listing = await visitAndCollect(page, bank.url);
-  if (!listing.text || listing.text.length < 80) {
-    throw new Error(
-      `頁面文字過少（${listing.text ? listing.text.length : 0} 字），可能被攔截或結構變更`,
-    );
+  let listing;
+  try {
+    listing = await visitAndCollect(page, bank.url, {
+      waitMs: bank.waitMs || 1200,
+    });
+  } catch (err) {
+    console.warn(`[scrape] ${bank.name} 總覽失敗，改試 extraUrls：${err.message}`);
+    listing = { status: null, finalUrl: bank.url, title: "", text: "", links: [] };
   }
 
-  const clickHrefs = await collectClickHrefs(page, bank.follow && bank.follow.clickNames);
-  const seedLinks = listing.links.concat(clickHrefs.map((href) => ({ href, text: "nav" })));
-  const followUrls = pickFollowUrls(bank, seedLinks, listing.finalUrl);
-  const sections = [`【總覽】${listing.finalUrl}\n${listing.text}`];
-  const links = [...listing.links];
+  const clickHrefs = listing.text
+    ? await collectClickHrefs(page, bank.follow && bank.follow.clickNames)
+    : [];
+  const seedLinks = (listing.links || []).concat(clickHrefs.map((href) => ({ href, text: "nav" })));
+  const followUrls = pickFollowUrls(bank, seedLinks, listing.finalUrl || bank.url);
+  const sectionRecords = [
+    {
+      kind: "listing",
+      url: listing.finalUrl || bank.url,
+      title: listing.title || bank.name,
+      text: listing.text || "",
+    },
+  ];
+  const textBlocks = listing.text ? [`【總覽】${listing.finalUrl}\n${listing.text}`] : [];
+  const links = [...(listing.links || [])];
   const seenLink = new Set(links.map((l) => l.href));
 
   for (const url of followUrls) {
     try {
       console.log(`[scrape] ${bank.name} 子頁 → ${url}`);
-      const sub = await visitAndCollect(page, url);
+      const sub = await visitAndCollect(page, url, {
+        waitMs: bank.waitMs || 1200,
+      });
       if (sub.text && sub.text.length >= 40) {
-        sections.push(`【子頁 ${sub.title || url}】${sub.finalUrl}\n${sub.text}`);
+        textBlocks.push(`【子頁 ${sub.title || url}】${sub.finalUrl}\n${sub.text}`);
+        sectionRecords.push({
+          kind: "detail",
+          url: sub.finalUrl || url,
+          title: sub.title || "",
+          text: sub.text,
+        });
       }
       for (const link of sub.links) {
         if (!seenLink.has(link.href)) {
@@ -293,16 +327,24 @@ async function scrapeBank(page, bank) {
     }
   }
 
+  const combined = textBlocks.join("\n\n");
+  if (combined.replace(/\s/g, "").length < 80) {
+    throw new Error(
+      `頁面文字過少（${combined.length} 字），可能被攔截或結構變更`,
+    );
+  }
+
   if (bank.sourceHint === "app" && bank.sourceNote) {
-    sections.push(`【來源限制】${bank.sourceNote}`);
+    textBlocks.push(`【來源限制】${bank.sourceNote}`);
   }
 
   return {
     status: listing.status,
-    finalUrl: listing.finalUrl,
+    finalUrl: listing.finalUrl || bank.url,
     title: listing.title,
-    text: sections.join("\n\n").slice(0, 120000),
+    text: textBlocks.join("\n\n").slice(0, 120000),
     links,
+    sections: sectionRecords,
     sourceHint: bank.sourceHint || "web",
     sourceNote: bank.sourceNote || "",
   };
@@ -377,7 +419,10 @@ async function main() {
             throw new Error("抽出 0 則優惠，為避免誤標過期而保留舊資料");
           }
           incomingByBank.set(bank.id, offers);
-          console.log(`[ai] ${bank.name} 抽出 ${offers.length} 則優惠`);
+          const withConditions = offers.filter((o) => (o.conditions || []).length).length;
+          console.log(
+            `[ai] ${bank.name} 抽出 ${offers.length} 則優惠（${withConditions} 則含任務條件）`,
+          );
         } catch (aiErr) {
           console.error(`[ai] ${bank.name} 解析失敗：`, aiErr.message);
           errors.push({

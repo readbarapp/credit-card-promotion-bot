@@ -74,6 +74,11 @@ const SKIP_HREF_RE =
   /^(javascript:|mailto:|tel:|sms:|#)/i;
 const SKIP_PATH_RE =
   /login|signin|privacy|cookie|terms|career|recruit|accessibility|facebook|instagram|youtube|linkedin|twitter|weibo/i;
+const JUNK_TITLE_RE =
+  /skip to (content|main)|個人e-?banking|查看全部|了解更多|^home$|^首頁$|^登入$|^搜尋$|^(invest|insure|spend|save)$|cookie settings|privacy policy/i;
+
+let lastAiAt = 0;
+let aiCallsThisRun = 0;
 
 function hongKongNow() {
   return new Date(
@@ -184,6 +189,31 @@ function pickAllowedUrl(candidate, harvested, listingUrl) {
   return canonicalizeUrl(listingUrl);
 }
 
+function isJunkTitle(title) {
+  const t = String(title || "").replace(/\s+/g, " ").trim();
+  if (!t || t.length < 4) return true;
+  if (JUNK_TITLE_RE.test(t)) return true;
+  if (/^https?:/i.test(t)) return true;
+  return false;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function aiBudgetLeft() {
+  return Math.max(0, Number(process.env.AI_MAX_CALLS || 24) - aiCallsThisRun);
+}
+
+async function pacedCall(fn) {
+  const gap = Math.max(0, Number(process.env.AI_CALL_GAP_MS || 3500));
+  const wait = lastAiAt + gap - Date.now();
+  if (wait > 0) await sleep(wait);
+  aiCallsThisRun += 1;
+  lastAiAt = Date.now();
+  return fn();
+}
+
 function normalizeDeadline(raw) {
   if (!raw) return "額滿即止";
   const text = String(raw).trim();
@@ -203,6 +233,99 @@ function normalizeDeadline(raw) {
   return "額滿即止";
 }
 
+function extractDeadlineFromText(text) {
+  const t = String(text || "");
+  const yearNow = hongKongNow().getFullYear();
+  const found = [];
+  const re =
+    /(?:截止日期|截止日|有效期至|有效直至|有效期|推廣期至|推廣直至|推廣期|優惠期至|優惠期|直至|到期日|到期)?[^\d]{0,12}(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/g;
+  let m;
+  while ((m = re.exec(t))) {
+    const y = Number(m[1]);
+    if (y < yearNow - 1 || y > yearNow + 3) continue;
+    found.push({
+      value: `${y}-${String(m[2]).padStart(2, "0")}-${String(m[3]).padStart(2, "0")}`,
+      labeled: /截止|有效|推廣|優惠|直至|到期/.test(m[0]),
+    });
+  }
+  const iso = t.match(/(?:截止|有效|推廣|直至)[^\d]{0,12}(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const labeled = found.filter((x) => x.labeled);
+  const pick = (labeled.length ? labeled : found).pop();
+  return pick ? pick.value : "額滿即止";
+}
+
+function extractRewardsFromText(text, title = "") {
+  const lines = String(text || "")
+    .split(/\n+/)
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const re =
+    /回贈|獎賞錢|里數|亞洲萬里通|現金券|現金|折扣|免年費|Cash\s*Back|迎新禮遇|迎新|積分|\d+\s*%|HK\$\s*\d+/i;
+  for (const line of lines) {
+    if (title && line === title) continue;
+    if (line.length >= 6 && line.length <= 180 && re.test(line) && !isJunkTitle(line)) {
+      return line;
+    }
+  }
+  return "";
+}
+
+function extractConditionsFromText(text, skipLines = []) {
+  const lines = String(text || "")
+    .split(/\n+/)
+    .map((s) => s.replace(/\s+/g, " ").trim());
+  const skipExact = new Set(skipLines.filter(Boolean));
+  const hits = [];
+  const re =
+    /須|需|必須|登記|報名|註冊|簽賬|消費|滿\s*HK|指定|持有.{0,12}卡|合資格|於\s*\d|最少|不得少於|不包括|經.{0,8}App|於推廣期|成功登記|不可|不得/;
+  const skip = /cookie|javascript|skip to|版權|copyright|關注我們|分享到/i;
+  for (const line of lines) {
+    if (line.length < 8 || line.length > 180) continue;
+    if (skipExact.has(line) || skip.test(line) || isJunkTitle(line)) continue;
+    if (re.test(line)) hits.push(line);
+    if (hits.length >= 10) break;
+  }
+  return uniq(hits);
+}
+
+function titleFromSection(section) {
+  const pageTitle = String(section.title || "")
+    .split(/[|｜–—]/)[0]
+    .replace(/\s+/g, " ")
+    .trim();
+  if (pageTitle && !isJunkTitle(pageTitle) && pageTitle.length <= 90) return pageTitle;
+  const firstLine = String(section.text || "")
+    .split(/\n+/)
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .find((s) => s.length >= 6 && s.length <= 90 && !isJunkTitle(s));
+  return firstLine || pageTitle || "";
+}
+
+function detectRegistration(text) {
+  return /須登[記記]|必須登[記記]|預先登[記記]|登記參加|網上登記|於\s*App\s*登[記記]|須報名|必須註冊|成功登記/.test(
+    String(text || ""),
+  )
+    ? "Yes"
+    : "No";
+}
+
+function extractFromSectionText(bank, section) {
+  const title = titleFromSection(section);
+  if (!title || isJunkTitle(title)) return null;
+  const text = section.text || "";
+  const rewards = extractRewardsFromText(text, title) || title;
+  return {
+    bank_name: bank.name,
+    title,
+    rewards,
+    conditions: extractConditionsFromText(text, [title, rewards]),
+    requires_registration: detectRegistration(text),
+    deadline: extractDeadlineFromText(text),
+    url: section.url || bank.url,
+  };
+}
+
 function buildPrompt(bank, scrapeResult, harvested, maxChars = 14000, maxLinks = 40) {
   const linkLines = harvested
     .slice(0, maxLinks)
@@ -216,21 +339,53 @@ function buildPrompt(bank, scrapeResult, harvested, maxChars = 14000, maxLinks =
 
 【硬性規則】
 1. url 欄位必須是下列「已抓取超連結」清單中的原始 href 之一。若找不到對應連結，使用總覽頁 URL。禁止發明、改寫或拼接未出現的網址。
-2. 忽略登入、私隱政策、Cookie、招聘、純品牌介紹、沒有實際獎賞的一般產品頁。
-3. 最多抽出 12 個最重要、具時效或明確獎賞的優惠。
+2. 忽略登入、私隱政策、Cookie、招聘、Skip to content、語言切換、純品牌介紹、沒有實際獎賞的一般產品頁。
+3. 最多抽出 10 個最重要、具時效或明確獎賞的優惠。每一則都要獨立分析，不要只抄標題。
 4. requires_registration 只能是 "Yes" 或 "No"。若文中提到須登記／報名／註冊，填 Yes。
 5. deadline 用 YYYY-MM-DD；若沒有明確日期或寫額滿即止／先到先得，填 "額滿即止"。
-6. conditions 為持卡人要完成的任務條件陣列（例如指定簽賬額、指定商戶、須於 App 登記）。沒有則給空陣列。
-7. rewards 用一句話說明獎賞（現金回贈、里數、折扣、禮品等）。
+6. conditions 必須從條款抽出持卡人要完成的任務（指定信用卡、最低簽賬、指定商戶、須於 App 登記、推廣期內消費）。有編號或項目符號就逐條放入陣列。沒有明確任務才給空陣列。禁止把導航文字放進 conditions。
+7. rewards 用一句話說明獎賞（現金回贈、里數、折扣、禮品等），不要只重複 title。
 8. title 精煉，不要整段條款。
 9. bank_name 固定為「${bank.name}」。
-10. 回傳 JSON 物件：{"offers":[...]}。
+10. 每則優惠必須填齊：bank_name, title, rewards, conditions, requires_registration, deadline, url。
+11. 回傳 JSON 物件：{"offers":[...]}。
 
 【已抓取超連結】
 ${linkLines || "(無)"}
 
 【網頁純文字】
 ${(scrapeResult.text || "").slice(0, maxChars)}
+`;
+}
+
+function buildSectionPrompt(bank, section, harvested, maxChars = 9000) {
+  const linkLines = harvested
+    .slice(0, 20)
+    .map((l, i) => `${i + 1}. ${l.href}${l.text ? `  |  ${l.text}` : ""}`)
+    .join("\n");
+
+  return `你是香港銀行／支付平台優惠資訊抽取器。以下是「單一優惠詳情頁」的純文字，請分析這一頁。
+
+平台名稱：${bank.name}
+本頁 URL：${section.url}
+
+【硬性規則】
+1. 若本頁只描述一個推廣，offers 只放 1 則。若本頁列出多個獨立推廣，最多 6 則。
+2. 每一則必須填齊：bank_name, title, rewards, conditions, requires_registration, deadline, url。
+3. bank_name 固定為「${bank.name}」。
+4. url 必須是本頁 URL（${section.url}）或下列已抓取超連結之一。禁止發明網址。
+5. rewards 說明實際獎賞，不要只抄標題。
+6. conditions 必須從條款抽出任務條件陣列（登記、指定卡、最低簽賬、指定商戶、日期限制）。有項目符號就逐條列出。
+7. requires_registration 只能 Yes 或 No。
+8. deadline 用 YYYY-MM-DD 或 "額滿即止"。
+9. 忽略 Skip to content、導航、語言切換、私隱政策。
+10. 只輸出 JSON：{"offers":[...]}。
+
+【已抓取超連結】
+${linkLines || "(無)"}
+
+【本頁純文字】
+${String(section.text || "").slice(0, maxChars)}
 `;
 }
 
@@ -373,14 +528,8 @@ function listProviders() {
             "HTTP-Referer": "https://github.com/readbarapp/credit-card-promotion-bot",
             "X-Title": "HK Bank Promo Dashboard",
           },
-          extraBody: {
-            models: [
-              "nvidia/nemotron-3.5-lightning:free",
-              "google/gemma-4-26b-a4b-it:free",
-              "nvidia/nemotron-3-ultra-550b-a55b:free",
-              "liquid/lfm-2.5-2.6b:free",
-            ],
-          },
+          // OpenRouter 規定 extraBody.models 最多 3 項；先前放 4 項會 HTTP 400，
+          // 整次爬蟲跌去規則抽取。模型回退改由下方 models 陣列逐個試。
         }),
     });
   }
@@ -443,9 +592,9 @@ function parseJsonPayload(text) {
 
 function toOffers(bank, items, harvested, scrapeResult) {
   return (items || [])
-    .filter((item) => item && item.title)
+    .filter((item) => item && item.title && !isJunkTitle(item.title))
     .map((item) => {
-      const title = String(item.title).trim().slice(0, 180);
+      const title = String(item.title).replace(/\s+/g, " ").trim().slice(0, 180);
       const deadline = normalizeDeadline(item.deadline);
       const url = pickAllowedUrl(
         item.url,
@@ -455,12 +604,13 @@ function toOffers(bank, items, harvested, scrapeResult) {
       const registration = /yes|是|須|需要/i.test(String(item.requires_registration || ""))
         ? "Yes"
         : "No";
+      const rewards = String(item.rewards || title).replace(/\s+/g, " ").trim().slice(0, 500);
       return {
         id: offerId(bank.name, title),
         bank_id: bank.id,
         bank_name: bank.name,
         title,
-        rewards: String(item.rewards || title).trim().slice(0, 500),
+        rewards: rewards || title,
         conditions: Array.isArray(item.conditions)
           ? item.conditions.map((c) => String(c).trim()).filter(Boolean).slice(0, 12)
           : [],
@@ -471,30 +621,101 @@ function toOffers(bank, items, harvested, scrapeResult) {
     });
 }
 
+function harvestWindow(sectionText, needle) {
+  const text = String(sectionText || "");
+  const key = String(needle || "").slice(0, 16);
+  if (!key) return text.slice(0, 1600);
+  const idx = text.indexOf(key);
+  if (idx < 0) return text.slice(0, 1600);
+  const start = Math.max(0, idx - 80);
+  return text.slice(start, start + 1600);
+}
+
 function extractOffersHeuristic(bank, scrapeResult, harvested) {
   const keywords = /優惠|回贈|迎新|獎賞|折扣|現金|里數|免年費|簽賬|miles|cashback|rebate|reward|offer|promo/i;
-  const skip = /登入|私隱|cookie|招聘|關於|聯絡|條款及細則|privacy|login|career|about/i;
+  const skip = /登入|私隱|cookie|招聘|關於|聯絡|條款及細則|privacy|login|career|about|prime-rates/i;
+  const sections = Array.isArray(scrapeResult.sections) && scrapeResult.sections.length
+    ? scrapeResult.sections
+    : [{
+        kind: "listing",
+        url: scrapeResult.finalUrl || bank.url,
+        title: scrapeResult.title || bank.name,
+        text: scrapeResult.text || "",
+      }];
+  const details = sections.filter(
+    (s) => s.kind === "detail" && String(s.text || "").trim().length >= 40,
+  );
   const seen = new Set();
   const items = [];
 
-  for (const link of harvested) {
-    const text = String(link.text || "").replace(/\s+/g, " ").trim();
-    if (!text || text === "listing") continue;
-    if (text.length < 6 || text.length > 90) continue;
-    if (skip.test(text) || skip.test(link.href)) continue;
-    if (!keywords.test(text) && !keywords.test(link.href)) continue;
-    const key = text.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    items.push({
-      title: text,
-      rewards: text,
-      conditions: [],
-      requires_registration: /登記|註冊|報名/.test(text) ? "Yes" : "No",
-      deadline: "額滿即止",
-      url: link.href,
-    });
-    if (items.length >= 10) break;
+  const source = details.length
+    ? details
+    : sections.filter((s) => String(s.text || "").trim().length >= 40);
+
+  for (const section of source) {
+    if (details.length) {
+      const item = extractFromSectionText(bank, section);
+      if (!item) continue;
+      const key = normalizeKey(item.title);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push(item);
+      continue;
+    }
+
+    for (const link of harvested) {
+      const text = String(link.text || "").replace(/\s+/g, " ").trim();
+      if (!text || text === "listing") continue;
+      if (text.length < 6 || text.length > 90) continue;
+      if (isJunkTitle(text) || skip.test(text) || skip.test(link.href)) continue;
+      if (/\.pdf(\?|$)/i.test(link.href)) continue;
+      if (!keywords.test(text) && !keywords.test(link.href)) continue;
+      const key = normalizeKey(text);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const window = harvestWindow(section.text, text);
+      const rewards = extractRewardsFromText(window, text) || text;
+      items.push({
+        title: text,
+        rewards,
+        conditions: extractConditionsFromText(window, [text, rewards]),
+        requires_registration: detectRegistration(window),
+        deadline: extractDeadlineFromText(window),
+        url: link.href,
+      });
+      if (items.length >= 10) break;
+    }
+  }
+
+  if (!items.length) {
+    for (const section of source) {
+      const item = extractFromSectionText(bank, section);
+      if (!item) continue;
+      items.push(item);
+      break;
+    }
+  }
+
+  if (!items.length) {
+    for (const link of harvested) {
+      const text = String(link.text || "").replace(/\s+/g, " ").trim();
+      if (!text || text === "listing" || isJunkTitle(text)) continue;
+      if (text.length < 6 || text.length > 90) continue;
+      if (skip.test(text) || skip.test(link.href) || /\.pdf(\?|$)/i.test(link.href)) continue;
+      if (!keywords.test(text) && !keywords.test(link.href)) continue;
+      const key = normalizeKey(text);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push({
+        title: text,
+        rewards: text,
+        conditions: [],
+        requires_registration: detectRegistration(text),
+        deadline: "額滿即止",
+        url: link.href,
+      });
+      if (items.length >= 10) break;
+    }
   }
 
   return toOffers(bank, items, harvested, scrapeResult);
@@ -507,41 +728,45 @@ function compactScrapedText(text, maxChars) {
   return parts.map((part) => part.slice(0, per)).join("\n\n").slice(0, maxChars);
 }
 
-async function extractOffersWithAi(bank, scrapeResult) {
-  const harvested = filterHarvestedLinks(scrapeResult.links, scrapeResult.finalUrl || bank.url);
-  const providers = listProviders();
-  let lastError;
+async function callModelOnce(provider, model, prompt, bank, harvested, listingUrl) {
+  if (aiBudgetLeft() <= 0) {
+    throw Object.assign(new Error("已達本輪 AI 呼叫上限"), { status: 429 });
+  }
+  const text = await pacedCall(() => provider.call(model, prompt));
+  const offers = toOffers(bank, parseJsonPayload(text), harvested, {
+    finalUrl: listingUrl,
+  });
+  if (!offers.length) {
+    throw new Error("模型沒有抽出任何優惠");
+  }
+  return offers;
+}
 
+async function tryProviders(providers, bank, prompt, harvested, listingUrl) {
+  let lastError;
   for (const provider of providers) {
-    const prompt = buildPrompt(
-      bank,
-      {
-        ...scrapeResult,
-        text: compactScrapedText(scrapeResult.text, provider.maxChars),
-      },
-      harvested,
-      provider.maxChars,
-      provider.maxLinks,
-    );
     for (const model of provider.models) {
-      for (let attempt = 1; attempt <= 3; attempt++) {
+      for (let attempt = 1; attempt <= 2; attempt++) {
         try {
           console.log(`[ai] ${bank.name} → ${provider.id}/${model} (attempt ${attempt})`);
-          const text = await provider.call(model, prompt);
-          const offers = toOffers(bank, parseJsonPayload(text), harvested, scrapeResult);
-          if (!offers.length) {
-            throw new Error("模型沒有抽出任何優惠");
-          }
+          const offers = await callModelOnce(
+            provider,
+            model,
+            prompt,
+            bank,
+            harvested,
+            listingUrl,
+          );
           lastAiBackend = provider.id;
           return offers;
         } catch (err) {
           lastError = err;
           const retryable = err.status === 429 || err.status === 503 || err.status === 404;
           if (err.status === 404) break;
-          if (retryable && attempt < 3) {
-            const wait = 1500 * 2 ** (attempt - 1);
+          if (retryable && attempt < 2) {
+            const wait = 2000 * attempt;
             console.warn(`[ai] ${bank.name} 重試 ${provider.id}/${model}，等待 ${wait}ms：${err.message}`);
-            await new Promise((r) => setTimeout(r, wait));
+            await sleep(wait);
             continue;
           }
           if (!retryable) break;
@@ -549,17 +774,127 @@ async function extractOffersWithAi(bank, scrapeResult) {
       }
     }
   }
+  if (lastError) throw lastError;
+  return [];
+}
 
-  console.warn(
-    `[ai] ${bank.name} ${providers.length ? "模型失敗" : "未設定 AI 金鑰"}，改用規則抽取`,
-    lastError ? lastError.message : "",
-  );
-  const fallback = extractOffersHeuristic(bank, scrapeResult, harvested);
-  if (fallback.length) {
-    lastAiBackend = "heuristic";
-    return fallback;
+function pushUniqueOffers(bucket, seen, offers) {
+  for (const offer of offers || []) {
+    if (!offer || isJunkTitle(offer.title)) continue;
+    const key = normalizeKey(offer.title);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    bucket.push(offer);
   }
-  throw lastError || new Error("沒有可用的 AI 金鑰，且規則抽取為空");
+}
+
+async function extractOffersWithAi(bank, scrapeResult) {
+  const harvestedAll = filterHarvestedLinks(
+    scrapeResult.links,
+    scrapeResult.finalUrl || bank.url,
+  );
+  const providers = listProviders();
+  const sections = Array.isArray(scrapeResult.sections) ? scrapeResult.sections : [];
+  const details = sections.filter(
+    (s) => s.kind === "detail" && String(s.text || "").trim().length >= 40,
+  );
+  const collected = [];
+  const seen = new Set();
+  let usedAi = false;
+  let lastError;
+
+  const maxSections = Math.max(1, Number(process.env.AI_MAX_SECTIONS_PER_BANK || 5));
+
+  if (providers.length && details.length) {
+    for (const section of details.slice(0, maxSections)) {
+      const harvested = filterHarvestedLinks(
+        scrapeResult.links,
+        section.url || scrapeResult.finalUrl || bank.url,
+      );
+      const prompt = buildSectionPrompt(
+        bank,
+        {
+          ...section,
+          text: String(section.text || "").slice(0, providers[0].maxChars || 9000),
+        },
+        harvested,
+        providers[0].maxChars || 9000,
+      );
+      try {
+        const offers = await tryProviders(
+          providers,
+          bank,
+          prompt,
+          harvested,
+          section.url || scrapeResult.finalUrl || bank.url,
+        );
+        if (offers.length) {
+          usedAi = true;
+          pushUniqueOffers(collected, seen, offers);
+          continue;
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`[ai] ${bank.name} 詳情頁失敗，改用該頁規則抽取：${section.url} → ${err.message}`);
+      }
+      pushUniqueOffers(
+        collected,
+        seen,
+        toOffers(
+          bank,
+          [extractFromSectionText(bank, section)].filter(Boolean),
+          harvested,
+          { finalUrl: section.url || bank.url },
+        ),
+      );
+    }
+  } else if (providers.length) {
+    const prompt = buildPrompt(
+      bank,
+      {
+        ...scrapeResult,
+        text: compactScrapedText(scrapeResult.text, providers[0].maxChars),
+      },
+      harvestedAll,
+      providers[0].maxChars,
+      providers[0].maxLinks,
+    );
+    try {
+      const offers = await tryProviders(
+        providers,
+        bank,
+        prompt,
+        harvestedAll,
+        scrapeResult.finalUrl || bank.url,
+      );
+      if (offers.length) {
+        usedAi = true;
+        pushUniqueOffers(collected, seen, offers);
+      }
+    } catch (err) {
+      lastError = err;
+      console.warn(`[ai] ${bank.name} 總覽分析失敗：${err.message}`);
+    }
+  }
+
+  if (!collected.length) {
+    console.warn(
+      `[ai] ${bank.name} ${providers.length ? "模型未能逐頁抽出優惠" : "未設定 AI 金鑰"}，改用規則抽取`,
+      lastError ? lastError.message : "",
+    );
+    pushUniqueOffers(
+      collected,
+      seen,
+      extractOffersHeuristic(bank, scrapeResult, harvestedAll),
+    );
+  }
+
+  lastAiBackend = usedAi ? lastAiBackend || (providers[0] && providers[0].id) : "heuristic";
+
+  if (!collected.length) {
+    throw lastError || new Error("沒有可用的 AI 金鑰，且規則抽取為空");
+  }
+  return collected;
 }
 
 function mergeOffers({ previous = {}, incomingByBank, errors, banks }) {
@@ -598,6 +933,7 @@ function mergeOffers({ previous = {}, incomingByBank, errors, banks }) {
 
     for (const old of prevOffers.filter((o) => o.bank_id === bank.id)) {
       if (seenIds.has(old.id)) continue;
+      if (String(old.id).startsWith("demo-") && incoming.length) continue;
       next.push({
         ...old,
         isNew: false,
@@ -798,6 +1134,7 @@ function writeOutputs(data) {
 
 module.exports = {
   extractOffersWithAi,
+  extractOffersHeuristic,
   mergeOffers,
   loadPreviousData,
   sendNotifications,
@@ -805,4 +1142,9 @@ module.exports = {
   writeOutputs,
   daysUntil,
   hongKongDateStr,
+  isJunkTitle,
+  extractConditionsFromText,
+  extractDeadlineFromText,
+  extractRewardsFromText,
+  extractFromSectionText,
 };

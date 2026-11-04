@@ -1,6 +1,6 @@
 # 香港銀行與支付優惠自動搜集 Dashboard
 
-完全運行於 **GitHub 免費生態** 的靜態情報系統：GitHub Actions 定時／按需爬蟲、Groq（香港可申請）語意抽取、GitHub Pages 發布。不使用外部資料庫、不使用 Vercel／Supabase，**0 成本**。
+完全運行於 **GitHub 免費生態** 的靜態情報系統：GitHub Actions 定時／按需爬蟲、OpenRouter（香港可用）語意抽取、GitHub Pages 發布。不使用外部資料庫、不使用 Vercel／Supabase，**0 成本**。
 
 整個生命週期由前端 Dashboard 主導：在網頁輸入 PAT、增刪監測平台、啟動／監控／終止 GitHub Actions Worker。
 
@@ -19,7 +19,7 @@ GitHub Actions (.github/workflows/scrape.yml)
         │  每日 08:00 HKT 或手動／Dispatch
         ├─ Playwright Chromium（headless，零截圖／零錄影）
         ├─ 各銀行獨立 try/catch，失敗只記 log 並繼續
-        ├─ Groq / OpenRouter / Gemini 抽取 JSON（香港預設 Groq）
+        ├─ OpenRouter / Groq / Gemini 抽取 JSON（香港預設 OpenRouter）
         ├─ 與舊 data.json 去重（isNew / Expired）
         ├─ Telegram / Discord Webhook 推播新優惠與 7 天內到期
         └─ commit data.json + 回寫 index.html 內嵌資料
@@ -28,25 +28,25 @@ GitHub Actions (.github/workflows/scrape.yml)
 GitHub Pages  →  任何人打開網址即可閱讀
 ```
 
-## 香港申請唔到 Gemini 怎麼辦
+## 香港申請唔到 Gemini／Groq 怎麼辦
 
-Google AI Studio **不支援香港地區帳戶**，所以 `GEMINI_API_KEY` 通常開唔到。這與 GitHub Actions 跑在美國無關——問題是金鑰本身申請不到。
+香港常見兩件事：Google AI Studio 開唔到 key，Groq 連 IP 都 block。**請用 OpenRouter**（本專案而家預設）。
 
-**請用 Groq（本專案預設、香港可申請、免信用卡）：**
+1. 打開 [https://openrouter.ai/keys](https://openrouter.ai/keys) 用 email 註冊
+2. Create API Key，複製金鑰（通常以 `sk-or-` 開頭）
+3. GitHub 倉庫 **Settings → Secrets and variables → Actions** 新增 **`OPENROUTER_API_KEY`**（名稱必須一模一樣）
+4. 在 Dashboard 再跑一次爬蟲
 
-1. 打開 [https://console.groq.com/keys](https://console.groq.com/keys) 用 email 註冊
-2. Create API Key，複製金鑰
-3. GitHub 倉庫 **Settings → Secrets and variables → Actions** 新增 `GROQ_API_KEY`
-4. 在 Dashboard 再跑一次爬蟲即可
+免費層約 20 次／分鐘、50 次／日，每日爬 7 間銀行夠用。腳本會用 `openrouter/free`，失敗則自動改打仍然免費的 Nemotron / Gemma 模型（舊的 `gpt-oss-20b:free` 已 404，不要再用）。
 
-| 選項 | 香港申請 | 免費 | 設定 |
+| 選項 | 香港 | 免費 | Secret 名稱 |
 |---|---|---|---|
-| **Groq（建議）** | ✅ | ✅ 免信用卡 | `GROQ_API_KEY` |
-| OpenRouter 免費模型 | ✅ | ✅ `:free` 模型 | `OPENROUTER_API_KEY` |
-| Gemini | ❌ 香港帳戶通常開唔到 | ✅ | `GEMINI_API_KEY`（有海外帳戶才用） |
-| 規則抽取 | 不需金鑰 | ✅ | 沒有任何 Key 時自動啟用（品質較低） |
+| **OpenRouter（建議）** | ✅ | ✅ `:free` 模型 | `OPENROUTER_API_KEY` |
+| Groq | 部分網絡 block IP | ✅ | `GROQ_API_KEY` |
+| Gemini | ❌ 帳戶通常開唔到 | ✅ | `GEMINI_API_KEY` |
+| 規則抽取 | 不需金鑰 | ✅ | （沒有任何 Key 時自動用） |
 
-可選 `AI_PROVIDER=groq|openrouter|gemini`、`AI_MODEL` 覆寫模型。有多把金鑰時優先順序為 Groq → OpenRouter → Gemini。
+可選 `AI_PROVIDER=openrouter|groq|gemini`、`AI_MODEL` 覆寫模型。有多把金鑰時優先順序為 OpenRouter → Groq → Gemini。
 
 ## 專案檔案
 
@@ -88,8 +88,8 @@ Google AI Studio **不支援香港地區帳戶**，所以 `GEMINI_API_KEY` 通�
 
 | Secret | 必填 | 說明 |
 |---|---|---|
-| `GROQ_API_KEY` | 香港用戶建議必填 | [Groq Console](https://console.groq.com/keys) 免費金鑰 |
-| `OPENROUTER_API_KEY` | 否 | [OpenRouter](https://openrouter.ai/keys) 免費模型備援 |
+| `OPENROUTER_API_KEY` | 香港用戶建議必填 | [OpenRouter Keys](https://openrouter.ai/keys)，名稱必須是這個 |
+| `GROQ_API_KEY` | 否 | Groq；若你屋企 IP 被封可唔使填 |
 | `GEMINI_API_KEY` | 否 | 僅在你已有海外 Gemini 帳戶時使用 |
 | `AI_PROVIDER` | 否 | `groq` / `openrouter` / `gemini` |
 | `AI_MODEL` | 否 | 覆寫模型名稱 |
@@ -142,7 +142,7 @@ Classic token 則需要 `repo` 權限。
 ```bash
 npm ci
 npx playwright install chromium
-export GROQ_API_KEY=你的金鑰
+export OPENROUTER_API_KEY=你的金鑰
 node scripts/scraper.js
 ```
 
@@ -159,6 +159,6 @@ node scripts/scraper.js
 ## 注意事項
 
 - 銀行網站可能有反爬、地區限制或登入牆。失敗不中斷整體流程，錯誤顯示在側欄。
-- Groq／Gemini 免費層有每分鐘／每天請求上限；腳本遇 429 會重試並換模型或供應商。
+- OpenRouter 免費層約 50 次／日；腳本遇 429 會重試並換仍然免費的模型。
 - 優惠內容由模型抽取，**請以官網條款為準**。
 - GitHub 免費 Actions 分鐘數對 Public 倉庫通常足夠；請勿打開 headed 瀏覽器或截圖，以免浪費時間與儲存空間。

@@ -1,13 +1,13 @@
 /**
  * AI 語意解析（香港可用）
  *
- * Google Gemini 在香港通常無法申請 API Key。GitHub Actions 雖然在美國跑，
- * 但金鑰本身申請唔到就無用。因此預設改走 Groq，並支援 OpenRouter / Gemini。
+ * 香港常見情況：Gemini 開唔到 key、Groq 連 IP 都 block。
+ * 因此預設優先 OpenRouter（香港可申請），再 Groq / Gemini。
  *
  * 優先次序（有金鑰先用）：
- *   1. Groq        GROQ_API_KEY        香港可申請、免信用卡
- *   2. OpenRouter  OPENROUTER_API_KEY  免費模型（:free）
- *   3. Gemini      GEMINI_API_KEY      可選，有海外帳戶先用
+ *   1. OpenRouter  OPENROUTER_API_KEY  香港可用、免費 :free 模型
+ *   2. Groq        GROQ_API_KEY        部分網絡會 block IP
+ *   3. Gemini      GEMINI_API_KEY      香港帳戶通常開唔到
  *   4. 規則抽取     無金鑰時仍可產出卡片（品質較低）
  *
  * 可用 AI_PROVIDER=groq|openrouter|gemini 強制指定。
@@ -24,6 +24,14 @@ let lastAiBackend = "heuristic";
 
 function uniq(values) {
   return values.filter((item, index, arr) => item && arr.indexOf(item) === index);
+}
+
+function envKey(...names) {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value && String(value).trim()) return String(value).trim();
+  }
+  return "";
 }
 
 const OFFER_ITEM_SCHEMA = {
@@ -264,7 +272,41 @@ async function callGemini(model, prompt, apiKey) {
   return text;
 }
 
-async function callOpenAiCompat({ baseUrl, apiKey, model, prompt, headers = {}, extraBody = {} }) {
+function extractOpenAiText(json) {
+  const msg = json?.choices?.[0]?.message || {};
+  if (typeof msg.content === "string") return msg.content;
+  if (Array.isArray(msg.content)) {
+    return msg.content.map((part) => part.text || part.content || "").join("");
+  }
+  return msg.reasoning || "";
+}
+
+async function callOpenAiCompat({
+  baseUrl,
+  apiKey,
+  model,
+  prompt,
+  headers = {},
+  extraBody = {},
+  jsonMode = true,
+}) {
+  const body = {
+    model,
+    temperature: 0.1,
+    max_tokens: 4096,
+    messages: [
+      {
+        role: "system",
+        content: '只輸出合法 JSON 物件，格式必須是 {"offers":[...]}，不要 markdown、不要解說。',
+      },
+      { role: "user", content: prompt },
+    ],
+    ...extraBody,
+  };
+  if (jsonMode) {
+    body.response_format = { type: "json_object" };
+  }
+
   const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
     headers: {
@@ -272,31 +314,31 @@ async function callOpenAiCompat({ baseUrl, apiKey, model, prompt, headers = {}, 
       Authorization: `Bearer ${apiKey}`,
       ...headers,
     },
-    body: JSON.stringify({
-      model,
-      temperature: 0.1,
-      max_tokens: 4096,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: '只輸出合法 JSON 物件，格式必須是 {"offers":[...]}，不要 markdown、不要解說。',
-        },
-        { role: "user", content: prompt },
-      ],
-      ...extraBody,
-    }),
+    body: JSON.stringify(body),
   });
 
   const raw = await res.text();
   if (!res.ok) {
+    const shouldRetryWithoutJson =
+      jsonMode && (res.status === 400 || /response_format|json_object|unsupported/i.test(raw));
+    if (shouldRetryWithoutJson) {
+      return callOpenAiCompat({
+        baseUrl,
+        apiKey,
+        model,
+        prompt,
+        headers,
+        extraBody,
+        jsonMode: false,
+      });
+    }
     const err = new Error(`${model} HTTP ${res.status}: ${raw.slice(0, 400)}`);
     err.status = res.status;
     throw err;
   }
 
   const json = JSON.parse(raw);
-  const text = json?.choices?.[0]?.message?.content;
+  const text = extractOpenAiText(json);
   if (!text) {
     throw new Error(`${model} 回傳空白`);
   }
@@ -306,8 +348,44 @@ async function callOpenAiCompat({ baseUrl, apiKey, model, prompt, headers = {}, 
 function listProviders() {
   const preferred = String(process.env.AI_PROVIDER || "").trim().toLowerCase();
   const catalog = [];
+  const groqKey = envKey("GROQ_API_KEY");
+  const openRouterKey = envKey("OPENROUTER_API_KEY", "OPENROUTER_KEY");
+  const geminiKey = envKey("GEMINI_API_KEY");
 
-  if (process.env.GROQ_API_KEY) {
+  if (openRouterKey) {
+    catalog.push({
+      id: "openrouter",
+      maxChars: 5000,
+      maxLinks: 30,
+      // 舊 :free slug（gpt-oss / llama-3.3）喺 2026-11 已 404，改用現時仍然免費嘅模型
+      models: uniq([
+        process.env.AI_MODEL,
+        "openrouter/free",
+        "nvidia/nemotron-3.5-lightning:free",
+      ]),
+      call: (model, prompt) =>
+        callOpenAiCompat({
+          baseUrl: "https://openrouter.ai/api/v1",
+          apiKey: openRouterKey,
+          model,
+          prompt,
+          headers: {
+            "HTTP-Referer": "https://github.com/readbarapp/credit-card-promotion-bot",
+            "X-Title": "HK Bank Promo Dashboard",
+          },
+          extraBody: {
+            models: [
+              "nvidia/nemotron-3.5-lightning:free",
+              "google/gemma-4-26b-a4b-it:free",
+              "nvidia/nemotron-3-ultra-550b-a55b:free",
+              "liquid/lfm-2.5-2.6b:free",
+            ],
+          },
+        }),
+    });
+  }
+
+  if (groqKey) {
     catalog.push({
       id: "groq",
       maxChars: 3500,
@@ -321,39 +399,14 @@ function listProviders() {
       call: (model, prompt) =>
         callOpenAiCompat({
           baseUrl: "https://api.groq.com/openai/v1",
-          apiKey: process.env.GROQ_API_KEY,
+          apiKey: groqKey,
           model,
           prompt,
         }),
     });
   }
 
-  if (process.env.OPENROUTER_API_KEY) {
-    catalog.push({
-      id: "openrouter",
-      maxChars: 5000,
-      maxLinks: 30,
-      models: uniq([
-        process.env.AI_MODEL,
-        "openai/gpt-oss-20b:free",
-        "qwen/qwen3-32b:free",
-        "meta-llama/llama-3.3-70b-instruct:free",
-      ]),
-      call: (model, prompt) =>
-        callOpenAiCompat({
-          baseUrl: "https://openrouter.ai/api/v1",
-          apiKey: process.env.OPENROUTER_API_KEY,
-          model,
-          prompt,
-          headers: {
-            "HTTP-Referer": "https://github.com/readbarapp/credit-card-promotion-bot",
-            "X-Title": "HK Bank Promo Dashboard",
-          },
-        }),
-    });
-  }
-
-  if (process.env.GEMINI_API_KEY) {
+  if (geminiKey) {
     catalog.push({
       id: "gemini",
       maxChars: 80000,
@@ -365,7 +418,7 @@ function listProviders() {
         "gemini-2.0-flash",
         "gemini-2.5-flash",
       ]),
-      call: (model, prompt) => callGemini(model, prompt, process.env.GEMINI_API_KEY),
+      call: (model, prompt) => callGemini(model, prompt, geminiKey),
     });
   }
 

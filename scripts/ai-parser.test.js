@@ -98,6 +98,41 @@ await check("heuristic uses detail sections instead of nav link titles", async (
   assert.ok(offers[0].url);
 });
 
+await check("BEA listing cards are parsed from dropdown source HTML", () => {
+  const { extractListingOfferCards, isOfferImageSrc, pickOfferImages } = require("./offer-images");
+  const html = `
+    <div class="hide update-discover-offer-list-source" data-tag="迎新優惠">
+      <div class="image-title-card"><a href="/html/tc/bea-credit-card-welcome-offer-bea-dual-card.html" target="_self">
+        <div class="image-block"><img src="/images/Acq/Dual/banner_350x234.jpg" alt=""></div>
+      </a></div>
+    </div>
+    <div class="hide update-discover-offer-list-source" data-tag="餐飲優惠">
+      <div class="image-title-card"><a href="/html/tc/bea-credit-card-dining.html">
+        <img src="/images/Usage/dining.jpg">
+      </a></div>
+    </div>`;
+  const cards = extractListingOfferCards(html, "https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html");
+  assert.equal(cards.length, 2);
+  assert.equal(cards[0].href, "https://www.hkbea.com/html/tc/bea-credit-card-welcome-offer-bea-dual-card.html");
+  assert.equal(cards[0].tag, "迎新優惠");
+  assert.equal(cards[1].tag, "餐飲優惠");
+  assert.equal(isOfferImageSrc("https://www.hkbea.com/images/Acq/Dual/landing.jpg"), true);
+  assert.equal(isOfferImageSrc("https://www.hkbea.com/images-solar/logo.png"), false);
+  const picked = pickOfferImages([
+    { src: "https://www.hkbea.com/images/Acq/Dual/banner_350x234.jpg" },
+    { src: "https://www.hkbea.com/images/Acq/Dual/eDM_landing_R1.jpg" },
+  ], 1);
+  assert.match(picked[0].src, /landing/);
+});
+
+await check("scraper never calls Playwright screenshot or recordVideo", () => {
+  const src = fs.readFileSync(path.join(__dirname, "scraper.js"), "utf8");
+  assert.doesNotMatch(src, /await\s+page\.screenshot\s*\(/);
+  assert.doesNotMatch(src, /recordVideo\s*:/);
+  assert.match(src, /expandCategoryDropdowns/);
+  assert.match(src, /collectImageOfferCards/);
+});
+
 await check("dashboard table markup includes required columns", () => {
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
   for (const col of [

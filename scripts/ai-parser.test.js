@@ -99,7 +99,7 @@ await check("heuristic uses detail sections instead of nav link titles", async (
 });
 
 await check("BEA listing cards are parsed from dropdown source HTML", () => {
-  const { extractListingOfferCards, isOfferImageSrc, pickOfferImages } = require("./offer-images");
+  const { extractListingOfferCards, isOfferImageSrc, pickOfferImages, pickCardsAcrossCategories } = require("./offer-images");
   const html = `
     <div class="hide update-discover-offer-list-source" data-tag="迎新優惠">
       <div class="image-title-card"><a href="/html/tc/bea-credit-card-welcome-offer-bea-dual-card.html" target="_self">
@@ -123,6 +123,23 @@ await check("BEA listing cards are parsed from dropdown source HTML", () => {
     { src: "https://www.hkbea.com/images/Acq/Dual/eDM_landing_R1.jpg" },
   ], 1);
   assert.match(picked[0].src, /landing/);
+  const spread = pickCardsAcrossCategories(cards, 6);
+  const tags = spread.map((c) => c.tag);
+  assert.ok(tags.includes("迎新優惠"));
+  assert.ok(tags.includes("餐飲優惠"));
+  assert.notEqual(spread.every((c) => c.tag === "迎新優惠"), true);
+});
+
+await check("only Hang Seng and BEA are enabled while tab logic is being fixed", () => {
+  const banks = require("../config/banks.js");
+  assert.deepEqual(banks.filter((b) => b.enabled !== false).map((b) => b.id), ["hangseng", "bea"]);
+  const hs = banks.find((b) => b.id === "hangseng");
+  assert.equal(hs.url, "https://www.hangseng.com/zh-hk/personal/offers/");
+  assert.ok(hs.categoryNav && hs.categoryNav.enabled !== false);
+  assert.match(hs.categoryNav.tabSelector, /tablist/);
+  assert.ok(hs.categoryNav.maxMoreClicks >= 8);
+  const bea = banks.find((b) => b.id === "bea");
+  assert.ok(bea.imageOffers.maxOffers >= 20);
 });
 
 await check("scraper never calls Playwright screenshot or recordVideo", () => {
@@ -130,6 +147,7 @@ await check("scraper never calls Playwright screenshot or recordVideo", () => {
   assert.doesNotMatch(src, /await\s+page\.screenshot\s*\(/);
   assert.doesNotMatch(src, /recordVideo\s*:/);
   assert.match(src, /expandCategoryDropdowns/);
+  assert.match(src, /expandCategoryTabs/);
   assert.match(src, /collectImageOfferCards/);
 });
 

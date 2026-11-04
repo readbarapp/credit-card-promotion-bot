@@ -18,7 +18,11 @@ const {
   buildDashboardPayload,
   writeOutputs,
 } = require("./ai-parser");
-const { pickOfferImages, extractListingOfferCards } = require("./offer-images");
+const {
+  pickOfferImages,
+  extractListingOfferCards,
+  pickCardsAcrossCategories,
+} = require("./offer-images");
 
 const banks = require("../config/banks.js");
 
@@ -322,6 +326,85 @@ async function collectImageOfferCards(page, listingUrl) {
   return extractListingOfferCards(html, listingUrl || page.url());
 }
 
+async function expandCategoryTabs(page, cfg) {
+  const tabSelector = cfg.tabSelector || 'nav[role="tablist"] a[role="tab"]';
+  const moreSelector =
+    cfg.moreSelector ||
+    ".rwd-offers-obc-category.active .rwd-offers-obc-category-show-more-button a, .rwd-offers-obc-category-content.show .rwd-offers-obc-category-show-more-button a";
+  const cardSelector =
+    cfg.cardLinkSelector ||
+    ".rwd-promotion-card a[href], .rwd-promotion-card-viewDetails a[href]";
+  const tabs = page.locator(tabSelector);
+  const count = await tabs.count();
+  if (!count) return [];
+  const collected = [];
+  const seen = new Set();
+
+  for (let i = 0; i < count; i += 1) {
+    const tab = tabs.nth(i);
+    const label = ((await tab.innerText().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+    try {
+      await tab.click({ timeout: 4000 });
+    } catch {
+      continue;
+    }
+    await new Promise((r) => setTimeout(r, cfg.waitAfterTabMs || 1600));
+    await page
+      .waitForSelector(".rwd-promotion-card a[href], .rwd-offers-obc-no-offers-available-title", {
+        timeout: 10000,
+      })
+      .catch(() => {});
+
+    for (let more = 0; more < Number(cfg.maxMoreClicks || 10); more += 1) {
+      const btn = page.locator(moreSelector).first();
+      const visible = await btn.isVisible({ timeout: 500 }).catch(() => false);
+      if (!visible) break;
+      await btn.click({ timeout: 2000 }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 700));
+    }
+
+    const found = await page.evaluate((selector) => {
+      const out = [];
+      const seenHref = new Set();
+      for (const a of document.querySelectorAll(selector)) {
+        const href = a.href || a.getAttribute("href");
+        if (!href || /^(javascript:|#|mailto:|tel:)/i.test(href)) continue;
+        if (seenHref.has(href)) continue;
+        seenHref.add(href);
+        out.push({
+          href,
+          text: (a.innerText || a.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim(),
+        });
+      }
+      return out;
+    }, cardSelector);
+
+    for (const item of found) {
+      let href;
+      try {
+        href = new URL(item.href, page.url()).href;
+      } catch {
+        continue;
+      }
+      if (seen.has(href) || /\.(pdf|jpg|jpeg|png|gif)(\?|$)/i.test(href)) continue;
+      seen.add(href);
+      collected.push({ href, tag: label, text: item.text, thumb: "" });
+    }
+    console.log(`[scrape] 分類「${label}」收集到 ${found.length} 條優惠連結`);
+  }
+
+  return collected;
+}
+
+function mergeFollowCards(cardList, maxOffers) {
+  const picked = pickCardsAcrossCategories(cardList, maxOffers);
+  return {
+    urls: picked.map((c) => c.href),
+    tags: new Map(picked.map((c) => [c.href, c.tag])),
+    picked,
+  };
+}
+
 async function scrapeBank(page, bank) {
   console.log(`[scrape] ${bank.name} → ${bank.url}`);
   let listing;
@@ -339,26 +422,42 @@ async function scrapeBank(page, bank) {
     : [];
   const seedLinks = (listing.links || []).concat(clickHrefs.map((href) => ({ href, text: "nav" })));
   let followUrls = pickFollowUrls(bank, seedLinks, listing.finalUrl || bank.url);
+  const useStructuredCards = Boolean(
+    (bank.imageOffers && bank.imageOffers.enabled !== false) ||
+      (bank.categoryNav && bank.categoryNav.enabled !== false),
+  );
 
-  if (bank.imageOffers && bank.imageOffers.enabled !== false) {
+  if (useStructuredCards) {
     try {
-      const n = await expandCategoryDropdowns(page);
-      const cards = await collectImageOfferCards(page, listing.finalUrl || bank.url);
-      const maxOffers = Math.max(1, Number(bank.imageOffers.maxOffers || 6));
-      const cardUrls = cards.map((c) => c.href).slice(0, maxOffers);
-      const cardTags = new Map(cards.map((c) => [c.href, c.tag]));
-      console.log(`[scrape] ${bank.name} 下拉優惠類型 ${n} 個、優惠卡 ${cards.length} 張，跟進 ${cardUrls.length} 頁`);
-      const merged = [];
-      const seenFollow = new Set();
-      for (const url of cardUrls.concat(followUrls)) {
-        if (!url || seenFollow.has(url)) continue;
-        seenFollow.add(url);
-        merged.push(url);
+      const categoryCards = bank.categoryNav && bank.categoryNav.enabled !== false
+        ? await expandCategoryTabs(page, bank.categoryNav)
+        : [];
+      if (bank.imageOffers && bank.imageOffers.enabled !== false) {
+        const n = await expandCategoryDropdowns(page);
+        console.log(`[scrape] ${bank.name} 已嘗試展開 ${n} 個下拉類型`);
       }
-      followUrls = merged.slice(0, Math.max(maxOffers, followUrls.length));
-      listing._cardTags = cardTags;
+      const imageCards = bank.imageOffers && bank.imageOffers.enabled !== false
+        ? await collectImageOfferCards(page, listing.finalUrl || bank.url)
+        : [];
+      const allCards = categoryCards.concat(imageCards);
+      const maxOffers = Math.max(
+        1,
+        Number(
+          (bank.imageOffers && bank.imageOffers.maxOffers) ||
+            (bank.categoryNav && bank.categoryNav.maxOffers) ||
+            (bank.follow && bank.follow.maxPages) ||
+            40,
+        ),
+      );
+      const mergedCards = mergeFollowCards(allCards, maxOffers);
+      const tags = [...new Set(mergedCards.picked.map((c) => c.tag).filter(Boolean))];
+      console.log(
+        `[scrape] ${bank.name} 分類 ${tags.join("、") || "無"}，共 ${allCards.length} 張卡，跟進 ${mergedCards.urls.length} 頁`,
+      );
+      followUrls = mergedCards.urls;
+      listing._cardTags = mergedCards.tags;
     } catch (err) {
-      console.warn(`[scrape] ${bank.name} 下拉優惠卡收集失敗：${err.message}`);
+      console.warn(`[scrape] ${bank.name} 分類優惠卡收集失敗：${err.message}`);
     }
   }
   const sectionRecords = [

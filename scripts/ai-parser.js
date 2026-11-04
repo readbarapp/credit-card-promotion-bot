@@ -203,7 +203,7 @@ function sleep(ms) {
 }
 
 function aiBudgetLeft() {
-  return Math.max(0, Number(process.env.AI_MAX_CALLS || 24) - aiCallsThisRun);
+  return Math.max(0, Number(process.env.AI_MAX_CALLS || 48) - aiCallsThisRun);
 }
 
 async function pacedCall(fn) {
@@ -901,7 +901,10 @@ async function extractOffersWithAi(bank, scrapeResult) {
   let usedAi = false;
   let lastError;
 
-  const maxSections = Math.max(1, Number(process.env.AI_MAX_SECTIONS_PER_BANK || 5));
+  const maxSections = Math.max(
+    1,
+    Number(bank.maxAiSections || process.env.AI_MAX_SECTIONS_PER_BANK || 40),
+  );
 
   if (providers.length && details.length) {
     for (const section of details.slice(0, maxSections)) {

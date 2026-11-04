@@ -41,17 +41,46 @@ function pickOfferImages(images, max = 4) {
     .slice(0, max);
 }
 
+function pickCardsAcrossCategories(cards, maxTotal) {
+  const byTag = new Map();
+  for (const card of cards || []) {
+    if (!card || !card.href) continue;
+    const tag = card.tag || "_";
+    if (!byTag.has(tag)) byTag.set(tag, []);
+    byTag.get(tag).push(card);
+  }
+  const out = [];
+  const seen = new Set();
+  let progressed = true;
+  while (progressed && out.length < maxTotal) {
+    progressed = false;
+    for (const list of byTag.values()) {
+      while (list.length) {
+        const next = list.shift();
+        if (!next || seen.has(next.href)) continue;
+        seen.add(next.href);
+        out.push(next);
+        progressed = true;
+        break;
+      }
+      if (out.length >= maxTotal) break;
+    }
+  }
+  return out;
+}
+
 function extractListingOfferCards(html, baseUrl) {
+  const source = String(html || "");
   const cards = [];
   const seen = new Set();
-  const sources = String(html || "").split(/update-discover-offer-list-source/);
-  for (const chunk of sources.slice(1)) {
-    const tagMatch = chunk.match(/^[^>]*(?:data-tag|class)[^>]*data-tag="([^"]+)"/) ||
-      chunk.match(/data-tag="([^"]+)"/);
+  const parts = source.split(/<div class="hide update-discover-offer-list-source"/);
+  for (const chunk of parts.slice(1)) {
+    const tagMatch = chunk.match(/data-tag="([^"]+)"/);
     const tag = tagMatch ? tagMatch[1] : "";
-    const re = /<a href="([^"]+)"[\s\S]{0,400}?<img src="([^"]+)"/gi;
+    const cardRe =
+      /<div class="image-title-card">\s*<a href="([^"]+)"[\s\S]{0,800}?<img src="([^"]+)"/gi;
     let m;
-    while ((m = re.exec(chunk))) {
+    while ((m = cardRe.exec(chunk))) {
       let href;
       try {
         href = new URL(m[1], baseUrl).href;
@@ -99,6 +128,7 @@ module.exports = {
   isOfferImageSrc,
   rankOfferImage,
   pickOfferImages,
+  pickCardsAcrossCategories,
   extractListingOfferCards,
   fetchImageDataUrl,
 };

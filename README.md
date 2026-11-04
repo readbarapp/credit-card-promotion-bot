@@ -69,13 +69,10 @@ Dashboard 以**列表**顯示每一則優惠，欄位為：`bank_name`（平台�
 
 ## 初始 7 大平台（官方總覽頁）
 
-1. 滙豐銀行 — https://www.redhotoffers.hsbc.com.hk/tc/home/（會跟進最新優惠等子頁）
-2. 恒生銀行 — https://www.hangseng.com/zh-hk/personal/cards/spending-privileges/offers-of-the-month-all/month-creditcard/
-3. 中銀香港 — https://www.bochk.com/tc/creditcard/promotions/offers.html
-4. 渣打銀行 — https://www.sc.com/hk/zh/credit-cards/offers/
-5. Mox Bank — https://mox.com/zh/promotions/
-6. 東亞銀行 — https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html（類型下拉選單 + 官網優惠圖轉文；**不是**強積金新聞頁）
-7. AlipayHK — https://www.alipayhk.com/zh/promotion/
+而家先只開兩間，等分類 tab／下拉穩咗再加返其他平台：
+
+1. 恒生銀行 — https://www.hangseng.com/zh-hk/personal/offers/（分類 tab +「顯示更多」+「了解詳情」）
+2. 東亞銀行 — https://www.hkbea.com/html/tc/bea-credit-card-hot-promotions.html（類型下拉：迎新／餐飲／旅遊／娛樂／購物／獎賞及消費／套現；官網優惠圖轉文）
 
 ## Step-by-step 設定
 

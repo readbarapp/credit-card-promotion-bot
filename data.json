@@ -1,6 +1,6 @@
 {
-  "lastUpdated": "2026-11-06T01:25:48.000Z",
-  "lastUpdatedHkt": "6/11/2026 09:25:48",
+  "lastUpdated": "2026-11-07T01:33:14.000Z",
+  "lastUpdatedHkt": "7/11/2026 09:33:14",
   "generatedBy": "scripts/scraper.js + openrouter-vision",
   "banks": [
     {
@@ -67,7 +67,7 @@
     "active": 43,
     "isNew": 43,
     "expiring7d": 0,
-    "durationMs": 1953229
+    "durationMs": 2375770
   },
   "offers": [
     {
@@ -75,13 +75,22 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "又到打風季，即刻超前部署為屋企做好防護！",
-      "rewards": "保费8折及高达港币200购物礼券",
-      "conditions": [],
+      "rewards": "家居保保費8折及高達港幣200購物禮券！ 頁底備註 3 由安達保險香港有限公司承保",
+      "conditions": [
+        "保障你、同住家人或寵物（貓和狗）因疏忽導致他人受傷或財物損失而需負上的法律責任",
+        "適用於受保期間同時成功投保或持有有效由本公司發出的「旅遊綜合保障計劃」",
+        "她於2個月前已為住所投保了「家安心家居保障計劃」尊尚計劃和自選建築物保障",
+        "然後，她提交了索償申請並提供以下文件：",
+        "賠償透過自動轉賬直接存入她指定的銀行戶口",
+        "作為業主，我可否為出租的物業投保此計劃？",
+        "恒生銀行有限公司(「恒生銀行」)已於保險業監管局註冊為保險代理機構(牌照號碼: FA3168)及獲安達保險授權分銷本計劃",
+        "投保本計劃須向安達保險支付保費，安達保險會向恒生銀行就銷售本計劃提供佣金及業績獎金，而恒生銀行目前所採取之銷售員工花紅制度，已包含員工多方面之表現，並非只著重銷售金額"
+      ],
       "requires_registration": "No",
       "deadline": "2026-11-20",
       "url": "https://www.hangseng.com/zh-hk/personal/insurance-mpf/accident-household/home-care-plus/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -92,13 +101,13 @@
       "title": "餐飲優惠",
       "rewards": "憑卡於全港逾350個飲食熱點可享優惠",
       "conditions": [
-        "使用東亞銀行信用卡"
+        "憑卡於全港逾350個飲食熱點"
       ],
       "requires_registration": "No",
       "deadline": "2026-12-31",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-dining-offer-yro.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -122,7 +131,7 @@
       "deadline": "2026-12-31",
       "url": "https://www.hkbea.com/html/tc/bea-unionpay-dual-currency-diamond-card.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -146,7 +155,31 @@
       "deadline": "2026-12-31",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-world-mastercard.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
+      "isNew": true,
+      "status": "active"
+    },
+    {
+      "id": "ed7657f4d054e4e4",
+      "bank_id": "bea",
+      "bank_name": "東亞銀行",
+      "title": "東亞銀行信用卡迎新獎賞 - 賞里．賞玩",
+      "rewards": "東亞銀行World Mastercard卡迎新獎賞",
+      "conditions": [
+        "上載信用卡申請文件",
+        "於2027年1月13日或之前成功申請東亞銀行World Mastercard卡並符合指定要求可享高達HK$500現金回贈1-2！",
+        "簽賬要求 憑卡作合資格簽賬滿HK$5,000或以上 憑卡作合資格簽賬滿HK$2,000或以上",
+        "「全新信用卡客戶」為於遞交申請日及批核之6個月內並無持有任何東亞銀行信用卡之主卡申請人（不包括東亞銀行公司卡及所有聯營卡和附屬卡或特選客戶）",
+        "「現有信用卡客戶」為於現時或於遞交申請日及批核之前6個月內曾持有任何東亞銀行信用卡之主卡申請人（不包括東亞銀行World Mastercard卡）",
+        "此外，無論餐飲還是購物等指定消費都可享高達12.5X獎分（相等於5%回贈）及二大專屬禮遇3！讓你隨時隨地都可以享受優惠，賺取回贈！",
+        "* 須經BEA Mall App完成登記「指定World Mastercard簽賬高達12.5X獎分」",
+        "相等於5%回贈以指定獎賞之優惠兌換率計算"
+      ],
+      "requires_registration": "No",
+      "deadline": "2027-01-13",
+      "url": "https://www.hkbea.com/html/tc/bea-credit-card-welcome-offer-wmc-q1.html",
+      "firstSeenDate": "2026-11-04",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -155,18 +188,17 @@
       "bank_id": "bea",
       "bank_name": "東亞銀行",
       "title": "奬賞及消費優惠",
-      "rewards": "高達 HK$5,740 獎賞，包括高達 1,365,000 獎分及 Apple Store 簽賬自選 HK$280 現金回贈或 4,000 里",
+      "rewards": "高達 HK$5,740 獎賞，連同指定信用卡額外獎賞可賺取高達 1,365,000 獎分，及 Apple Store 簽賬自選 HK$280 現金回贈或 4,000 里",
       "conditions": [
-        "每階段累積本地及海外簽賬滿至少 HK$8,000 (單一簽賬交易須滿 HK$300)",
         "需於 BEA Mall 登記冬日消費激賞",
-        "指定簽賬類別（網上購物、網上外賣平台、家電/電子產品、機票/酒店、旅行社、海外）享高達 12.5X 獎分",
-        "於 Apple Store 透過 Apple Pay 單一簽賬淨額滿 HK$8,000 或以上，可獲 HK$280 現金回贈或 4,000 里（二選一）"
+        "每階段累積本地及海外簽賬滿至少 HK$8,000 (單一簽賬交易須滿 HK$300)",
+        "透過 Apple Pay 於 Apple Store 簽賬淨額滿 HK$8,000 或以上"
       ],
       "requires_registration": "Yes",
       "deadline": "2027-02-14",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-rewards-and-spending-offer-spending-1.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -181,7 +213,7 @@
       "deadline": "未註明",
       "url": "https://www.hangseng.com/cms/emkt/pmo/grp04/p95/chi/index.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -190,17 +222,22 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "税季貸款- ⾼達港幣⼗萬獎賞",
-      "rewards": "優越理財客戶可享高達港幣20,000現金回贈，其他客戶網上申請可享高達港幣8,000現金回贈，更有機會於每月大抽獎贏取港幣80,000現金回贈。全新贷欖客戶更可獲額外一次抽獎機會。",
+      "rewards": "實際年利率低⾄1.68% 頁底備註 1",
       "conditions": [
-        "申請稅季私人分期貨款，贷欖額最低為港幣5,000元",
-        "優越理財客戶可享高達港幣20,000現金回贈，其他客戶需網上申請方可享高達港幣8,000現金回贈",
-        "全新贷欖客戶可獲額外抽獎機會"
+        "優越理財客戶可享高達港幣20,000現金回贈，其他客戶網上申請可享高達港幣8,000現金回贈，更有機會於每月大抽獎贏取港幣80,000現金回贈！",
+        "擬申請之貸款額應大於港元5,000.00",
+        "擬申請之貸款額應小於港元3,000,000.00",
+        "每月還款額及實際年利率的計算不包括任何費用、收費及現金回贈",
+        "立即下載恒生Mobile App，輕鬆幾步完成貸款申請！",
+        "一分鐘批核及現金即時到手只適用於服務時間內透過恒生 Mobile App 或個人 e-Banking 提交的申請，並須符合信貸評分審批要求及戶口狀況要求",
+        "若客戶已償還之貸款期數達1個月或以上、已償還本金逾港幣3,000元及具備準時還款紀錄，可申請循環提用已償還之本金",
+        "貸款申請須經恒生批核，實際利率、獲批貸款金額及申請貸款所需的文件可能因應個別情況而有所調整，而還款責任將以實際條款為準"
       ],
       "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/loans/instalment-loan/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -209,17 +246,16 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "保證回報率達3.02%至3.30%",
-      "rewards": "保證回報率達3.02%至3.30%。圖表展示保費繳付期5年後，可獲得年金期10年或累積期15年的保證年金入息（如每年港幣+34,020.00或+135,300.00）。",
+      "rewards": "累積期15年：保費繳付期5年，每年港幣-38,003.20，年金期10年，每年港幣+34,020.00；累積期10年：保費繳付期5年，每年港幣-180,005.40，年金期10年，每年港幣+135,300.00",
       "conditions": [
-        "保費繳付期（5年）",
-        "累積期（10年或15年）",
-        "年金期（10年）"
+        "累積期(15年)：保費繳付期(5年)，每年港幣-38,003.20，年金期(10年)，每年港幣+34,020.00",
+        "累積期(10年)：保費繳付期(5年)，每年港幣-180,005.40，年金期(10年)，每年港幣+135,300.00"
       ],
       "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/insurance-mpf/retirement-wealth-education/eincomepro-guaranteed/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -234,7 +270,7 @@
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/insurance-mpf/retirement-wealth-education/steady-pay/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -243,7 +279,7 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "升級餐飲迎新賞高達$1,200 +FUN Dollars",
-      "rewards": "高達 7.0% +FUN DOLLARS",
+      "rewards": "高達 70% +FUN DOLLARS",
       "conditions": [
         "申請恒生Travel+ Visa Signature卡，邊食邊賺迎新！ 頁底備註 1"
       ],
@@ -251,7 +287,7 @@
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/cards/products/travel-plus-card/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -260,16 +296,17 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "貸款加借服務",
-      "rewards": "可申請高於已償還本金的金額以滿足現金需要",
+      "rewards": "貸款加借服務，可申請再提取貸款（圖中示例港幣 100,000.00），實際年利率 5.56%",
       "conditions": [
         "選擇現有貸款戶口",
-        "輸入再提取金額"
+        "輸入再提取金額",
+        "選擇新還款方案"
       ],
       "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/loans/top-up-loan/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -278,13 +315,18 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "手機提款服務",
-      "rewards": "手機設定，ATM一掃取款 頁底備註 3",
-      "conditions": [],
+      "rewards": "透過手機NFC或二維碼於自動櫃員機提取現金",
+      "conditions": [
+        "登入恒生個人理財應用程式",
+        "選擇「手機提款」服務",
+        "選擇提款戶口及輸入金額",
+        "以手機輕觸自動櫃員機NFC讀取器或掃描二維碼"
+      ],
       "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/digital/personal-mobile-app/mobile-cash-withdrawal/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -301,7 +343,7 @@
       "deadline": "未註明",
       "url": "https://www.hangseng.com/cms/emkt/pmo/grp06/p04/chi/index.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -310,19 +352,22 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "結餘轉戶私人貸款",
-      "rewards": "可享高達港幣26,000現金回贈；另有0%手續費及個人化利率優惠，最終以批核為準",
+      "rewards": "高達港幣26,000現金回贈 頁底備註 1",
       "conditions": [
-        "完成網上申請",
-        "上載所需文件",
-        "提交最近一個月薪金證明",
-        "選擇結餘轉戶私人貸款",
-        "清還高息信用卡數"
+        "開始你的貸款申請旅程",
+        "只需提交最近一個月薪金證明",
+        "擬申請之貸款額應大於港元0.00",
+        "擬申請之貸款額應小於港元3,000,000.00",
+        "上述所列之實際年利率並不包括任何費用及收費",
+        "本行保留批核貸款申請之權利",
+        "實際可節省的總利息支出將按個別情況而定 (例如須視乎客戶現有信用卡的實際結欠、個別信用卡的利率、每月還款額、還款期及本行最終批核的結餘轉戶私人貸款之貸款金額、還款期、利率及每月還款額等因素而釐訂)",
+        "恒生銀行有限公司(「恒生」)保留權利視乎個別情況要求申請人提供額外之薪金證明"
       ],
-      "requires_registration": "Yes",
+      "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/loans/debt-consolidation-loan/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -339,7 +384,7 @@
       "deadline": "未註明",
       "url": "https://www.hangseng.com/cms/emkt/pmo/grp02/p51/chi/index.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -348,15 +393,16 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "綠色按揭 - 為你起動未來新可能",
-      "rewards": "成功提取按揭貸款可享現金回贈（註腳：按揭現金回贈只適用於獲批核港幣1,000,000或以上最終提取按揭貸款額的客戶；最終按揭現金回贈金額將視乎財務狀況、還款能力和貸款額而定，會存入至指定按揭貸款供款戶口；如已獲得現金回贈總額超過綠色按揭貸款額的1%，須用於扣除按揭貸款額）",
+      "rewards": "成功提取按揭貸款可享現金回贈；回贈金額視乎財務狀況、還款能力和貸款額而定，提取貸款後存入指定按揭貸款供款戶口；如現金回贈總額超過綠色按揭貸款額的1%，須用於扣除按揭貸款額",
       "conditions": [
-        "[object Object]"
+        "成功提取按揭貸款",
+        "最終提取按揭貸款額港幣1,000,000或以上"
       ],
-      "requires_registration": "Yes",
+      "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/mortgages/green-mortgage/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -365,15 +411,13 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "投保旅遊綜合保障計劃 - 單次旅程",
-      "rewards": "新客戶額外享高達港幣100保費回贈（頁底備註5）",
-      "conditions": [
-        "[object Object]"
-      ],
+      "rewards": "新客戶額外享港幣100保費回贈",
+      "conditions": [],
       "requires_registration": "Yes",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/insurance-mpf/travel-ins/travelsure/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -388,7 +432,7 @@
       "deadline": "未註明",
       "url": "https://www.hangseng.com/cms/emkt/pmo/grp06/p55/chi/index.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -397,13 +441,13 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "政府資助房屋按揭貸款",
-      "rewards": "高達95%貸款成數，另有H按或P按計劃供選擇 頁底備註 1",
+      "rewards": "居者有其屋計劃：綠表按揭成數高達樓價95%，白表高達90%，還款期長達30年，免提早清贖費；租者置其屋計劃：公屋按揭貸款額高達樓價100%（不包括已支付香港房屋委員會訂金/意向金），還款期長達30年，免部份還款手續費及提早清贖費；綠置居計劃：按揭成數高達樓價95%，還款期長達30年，免提早清贖費",
       "conditions": [],
       "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/mortgages/government-housing/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -413,14 +457,12 @@
       "bank_name": "恒生銀行",
       "title": "投保個人意外保障計劃",
       "rewards": "首年保費85折優惠及港幣200電子購物禮券",
-      "conditions": [
-        "成功投保個人意外保障計劃"
-      ],
-      "requires_registration": "Yes",
+      "conditions": [],
+      "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/insurance-mpf/accident-household/personal-accident/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -429,13 +471,16 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "恒生MMPOWER World Mastercard",
-      "rewards": "網購高達8% +FUN Dollars! 頁底備註 1",
-      "conditions": [],
+      "rewards": "於網上購物或指定商戶使用恒生MMPOWER World Mastercard簽賬，可賺取高達8% +FUN Dollars獎賞",
+      "conditions": [
+        "使用恒生MMPOWER World Mastercard",
+        "於網上購物或指定商戶簽賬"
+      ],
       "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/cards/online-applications/credit-cards/mmpower-card-details/?id=MMPOWER",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -444,16 +489,17 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "物業套現",
-      "rewards": "可套取資金 HKD4,950,000 (用作購買海外物業資金 HKD3,450,000；備用現金作資金周轉 HKD1,500,000)",
+      "rewards": "物業套現，套取靈活資金 頁底備註 2",
       "conditions": [
-        "現時物業市值 HKD8,500,000",
-        "現時剩餘按揭貸款額 HKD1,000,000"
+        "無論現契在手或已有按揭之物業，均可透過恒生輕鬆將物業套取額外資金靈活運用，助您時刻捕捉市場機遇，滿足你不同理財需要(如子女外國讀書資金、清還債務等)",
+        "按揭貸款條件及按揭貸款額須根據香港金管局最新按揭指引及以恒生銀行有限公司最終之批核結果為準",
+        "除一般每月定額還款計劃外，你亦可根據自己理財需要選擇以下的還款方式："
       ],
       "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/mortgages/property-refinancing/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -464,15 +510,13 @@
       "title": "登記及轉用PayDay+出糧",
       "rewards": "高達港幣3,200迎新現金獎賞",
       "conditions": [
-        "轉用PayDay+出糧",
-        "無薪金門檻",
-        "無額外任務"
+        "登記及轉用PayDay+出糧"
       ],
       "requires_registration": "Yes",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/cms/emkt/pmo/grp04/p06/chi/index.html?view=d2g",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -481,16 +525,15 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "投保海外留學保障計劃",
-      "rewards": "可享保費折扣優惠及高達港幣500電子禮券",
+      "rewards": "保費折扣優惠及最高港幣500元電子禮券",
       "conditions": [
-        "投保海外留學保障計劃",
-        "完成投保程序"
+        "申請/投保海外留學保障計劃（尊貴計劃）"
       ],
-      "requires_registration": "No",
+      "requires_registration": "Yes",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/zh-hk/personal/insurance-mpf/travel-ins/studysure/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -499,13 +542,13 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "美國市場走勢反覆，精準駕馭投資機遇",
-      "rewards": "提供增加潛在被動收入的機會",
+      "rewards": "了解更多投資產品讓你涉足美國市場。 頁底備註 6",
       "conditions": [],
       "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/cms/emkt/pmo/grp03/p37/chi/index.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -514,15 +557,13 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "健康=家庭財富本錢",
-      "rewards": "最高港幣500元禮品一份，預約會面後發放",
-      "conditions": [
-        "預約會面"
-      ],
+      "rewards": "預約會面可享高達港幣500禮品 頁底備註 8 由恒生保險有限公司承保",
+      "conditions": [],
       "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hangseng.com/cms/emkt/pmo/grp01/p19/chi/index.html?view=d2g",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -531,15 +572,15 @@
       "bank_id": "bea",
       "bank_name": "東亞銀行",
       "title": "東亞銀行信用卡雙卡迎新獎賞",
-      "rewards": "迎新獎賞高達HK$1,000現金回贈（BEA World Mastercard HK$500現金回贈 + BEA GOAL信用卡 HK$500現金回贈）；餐飲及外幣簽賬高達12.5X獎分（相等於5%回贈）；搶飛、旅遊及本地交通享高達6.4%回贈",
+      "rewards": "迎新獎賞高達HK$1,000現金回贈（BEA World Mastercard HK$500 + BEA GOAL信用卡 HK$500），餐飲及外幣簽賬高達12.5X獎分，搶飛、旅遊及本地交通享高達6.4%回贈",
       "conditions": [
-        "全新信用卡客戶申請 BEA World Mastercard + BEA GOAL信用卡"
+        "全新信用卡客戶申請"
       ],
       "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-welcome-offer-bea-dual-card.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -548,9 +589,9 @@
       "bank_id": "bea",
       "bank_name": "東亞銀行",
       "title": "旅遊優惠",
-      "rewards": "用 BEA CENTENNIAL World Elite Mastercard、BEA SupremeGold World Mastercard、BEA World Mastercard 及東亞銀行 AIA 信用卡登記「Mastercard Travel Rewards」，並於全球多達 26 個國家/地區的精選旅遊商戶作簽賬，可賺額外現金回贈高達 20%",
+      "rewards": "於全球多達 26 個國家/地區的精選旅遊商戶作簽賬，可賺額外現金回贈高達 20%",
       "conditions": [
-        "使用 BEA CENTENNIAL World Elite Mastercard、BEA SupremeGold World Mastercard、BEA World Mastercard 或東亞銀行 AIA 信用卡",
+        "使用 BEA CENTENNIAL World Elite Mastercard、BEA SupremeGold World Mastercard、BEA World Mastercard 及東亞銀行 AIA 信用卡",
         "登記「Mastercard Travel Rewards」",
         "於全球多達 26 個國家/地區的精選旅遊商戶作簽賬"
       ],
@@ -558,7 +599,7 @@
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-travel-offer-mastercard.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -567,15 +608,16 @@
       "bank_id": "bea",
       "bank_name": "東亞銀行",
       "title": "購物優惠",
-      "rewards": "指定商戶消費享折扣，具體商戶及折扣詳情請參閱頁面",
+      "rewards": "Enjoy discounts at selected merchants when using BEA Credit Card.",
       "conditions": [
-        "[object Object]"
+        "BEA Credit Card",
+        "Shopping at participating merchants"
       ],
       "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-shopping-offer-hkjd-mall.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -584,16 +626,16 @@
       "bank_id": "bea",
       "bank_name": "東亞銀行",
       "title": "「好用錢」現金兌現計劃",
-      "rewards": "現金兌現",
+      "rewards": "現金兌現計劃",
       "conditions": [
         "毋須任何文件",
         "7X24 隨時申請"
       ],
-      "requires_registration": "Yes",
+      "requires_registration": "No",
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-cash-in-hand-programme.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -602,7 +644,7 @@
       "bank_id": "bea",
       "bank_name": "東亞銀行",
       "title": "東亞銀行顯卓理財World Mastercard卡迎新優惠",
-      "rewards": "高達12.5X獎分(=5%回贈) + 享高達HK$500迎新獎賞",
+      "rewards": "指定類別簽賬高達12.5X獎分(=5%回贈) + 享高達HK$500迎新獎賞 + 尊尚理財服務及生活禮遇（以1,000分兌換每月驚喜、以HK$1 + 指定獎分無限次換領旅遊保險、名貴轎車往返機場接送服務、寶康醫療中心醫療體檢計劃低至45折）",
       "conditions": [
         "指定類別簽賬"
       ],
@@ -610,7 +652,7 @@
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-welcome-offer-sgw.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -634,26 +676,7 @@
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-cash-in-hand-statement-instalment.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
-      "isNew": true,
-      "status": "active"
-    },
-    {
-      "id": "181b06244e10194e",
-      "bank_id": "bea",
-      "bank_name": "東亞銀行",
-      "title": "BEA World Mastercard – 全新簽賬獎賞體驗",
-      "rewards": "指定類別簽賬高達12.5X獎分(=5%回贈) + 高達HK$500回贈迎新獎賞",
-      "conditions": [
-        "指定類別簽賬：美酒佳餚、健康醫療、至潮電玩、運動健身、海外購物",
-        "於BEA World專區以1,000分兌換每月驚喜",
-        "於BEA World專區以HK$1 + 指定獎分無限次換領旅遊保險"
-      ],
-      "requires_registration": "Yes",
-      "deadline": "未註明",
-      "url": "https://www.hkbea.com/html/tc/bea-credit-card-welcome-offer-wmc-q1.html",
-      "firstSeenDate": "2026-11-06",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -677,7 +700,7 @@
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-cash-in-hand-balance-transfer.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -695,7 +718,7 @@
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-cashadvance.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -719,7 +742,7 @@
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-welcome-offer-bea-goal-card.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -743,7 +766,7 @@
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-welcome-offer-goal-student-card.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -765,7 +788,7 @@
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-virtual-card.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -789,7 +812,7 @@
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/suppcard.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -813,7 +836,7 @@
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-aia-credit-card.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -834,7 +857,7 @@
       "deadline": "未註明",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-welcome-offer-jcb-card.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -843,15 +866,21 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "「極蓄賞」人壽保險計劃(一年)",
-      "rewards": "期滿後高達3.25%美元保證回報率；港幣計劃高達2.70%年度回報率；人民幣計劃高達1.30%年度回報率；美元計劃高達3.70%年度回報率。以單次繳付保費投保，期滿後可收到高達已繳總保費102.70%的保證現金價值（港幣計劃）",
+      "rewards": "網上投保可享高達3.25%保證回報！ 頁底備註 4 由恒生保險有限公司承保",
       "conditions": [
-        "[object Object]"
+        "此計劃並非銀行現金存款計劃或銀行儲蓄計劃，而是設有特短之1年保單年期的人壽保障，當1年保單屆滿後，你亦可獲派保證現金價值，財富保障助你應付突如其來的開支，更可經網上投保，過程快捷簡單",
+        "客戶應跟據個人保險需要及其負擔能力而尋找短期儲蓄人壽保險",
+        "只需1年時間，透過儲蓄保障計劃來達到短期儲蓄目標為財富增值",
+        "因此他以單次繳交了港幣176,490元保費投保了「極蓄賞」人壽保險計劃(一年)的港幣計劃，希望更輕鬆累積財富",
+        "「極蓄賞」人壽保險計劃(一年)是限額發售的，恒生保險有限公司保留權利停止接受本計劃的網上申請而毋須預先通知，或根據受保人及/或保單持有人提供之資料接受或拒絕本計劃的網上申請",
+        "恒生保險有限公司可根據本計劃的銷售限額，保留接受或拒絕申請的權利",
+        "有關年繳保費方式：由於系統設定均以四捨五入計算保費，以上保費選項的金額與實際需繳付的保費金額會有不多於001%的差別"
       ],
-      "requires_registration": "Yes",
+      "requires_registration": "No",
       "deadline": "額滿即止",
       "url": "https://www.hangseng.com/zh-hk/personal/insurance-mpf/retirement-wealth-education/quickreward-endowment/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -860,22 +889,13 @@
       "bank_id": "hangseng",
       "bank_name": "恒生銀行",
       "title": "「精選五年」人壽保險計劃",
-      "rewards": "5年保證年度回報高達3.7% 頁底備註 6 由恒生保險有限公司承保",
-      "conditions": [
-        "你可考慮符合你保障需要的其他保費選項",
-        "此計劃並非銀行現金存款計劃或銀行儲蓄計劃，而是設有特短之5年保單年期的人壽保障外，當保單屆滿後，你亦可獲派保證現金價值，助你更輕鬆達成理財目標，無需費時作任何儲蓄人壽保險計劃比較",
-        "而且可經網上投保，過程快捷簡單",
-        "「精選五年」人壽保險計劃（網上投保版）是限額發售的，「恒生保險」保留權利停止接受本計劃的網上申請而毋須預先通知，或根據受保人及/ 或保單持有人提供之資料接受或拒絕本計劃的網上申請",
-        "客戶應跟據個人保險需要及其負擔能力而尋找短期儲蓄人壽保險",
-        "陳先生想購買屬於自己的第一架車，但現時資金不足，因此以年繳港幣60,000元的模式投保了「精選五年」人壽保險計劃（港元），希望更輕鬆累積財富",
-        "投保計劃並開始儲蓄期",
-        "恒生保險有限公司可根據本計劃的銷售限額，保留接受或拒絕申請的權利"
-      ],
+      "rewards": "保證年度回報高達3.70%（美元）/3.40%（港元），保單期滿後獲派保證現金價值高達已繳總保費的117.7%，並提供人壽保障、意外身故保障及失業延繳保障。",
+      "conditions": [],
       "requires_registration": "No",
       "deadline": "額滿即止",
       "url": "https://www.hangseng.com/zh-hk/personal/insurance-mpf/retirement-wealth-education/5-year-eendowment/",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": true,
       "status": "active"
     },
@@ -899,7 +919,7 @@
       "deadline": "2025-12-31",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-welcome-offer-diamond-student-card.html",
       "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": false,
       "status": "expired"
     },
@@ -928,18 +948,20 @@
       "bank_id": "bea",
       "bank_name": "東亞銀行",
       "title": "AXA 安盛呈獻《You & Mi 鄭秀文演唱會2026 亞洲巡迴終點站 - 香港啟德主場館》 東亞銀行信用卡獨家優先訂票",
-      "rewards": "東亞銀行信用卡獨家優先訂票 AXA 安盛呈獻《You & Mi 鄭秀文演唱會2026 亞洲巡迴終點站 - 香港啟德主場館》門票",
+      "rewards": "東亞銀行信用卡獨家優先訂票",
       "conditions": [
-        "提早於快達票網頁 hkt.hkticketing.com 登記成為會員",
-        "於 2026年4月20日上午10時準時優先訂購，使用東亞銀行Visa卡、Mastercard或銀聯雙幣信用卡購買門票",
-        "每快達票註冊賬戶每次交易最多可購買4張門票",
+        "需於快達票網頁 hkt.hkticketing.com 登記成為會員",
+        "2026年4月20日上午10時準時優先訂購",
+        "使用東亞銀行Visa卡、Mastercard或銀聯雙幣信用卡購買門票",
+        "每次交易最多可購買4張門票",
+        "需透過東亞手機銀行驗證網上交易",
         "收取每張門票HK$100客戶服務費及每交易HK$40本地派遞服務費"
       ],
       "requires_registration": "Yes",
       "deadline": "2026-04-22",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-entertainment-offer-2026-sammi-cheng.html",
       "firstSeenDate": "2026-11-06",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": false,
       "status": "expired"
     },
@@ -970,47 +992,21 @@
       "bank_id": "bea",
       "bank_name": "東亞銀行",
       "title": "梁詠琪 \"LOVE GiGi\" 愛自己世界巡迴演唱會香港站 東亞銀行信用卡獨家優先訂票",
-      "rewards": "東亞銀行信用卡獨家優先訂票梁詠琪 \"LOVE GiGi\" 愛自己世界巡迴演唱會香港站門票",
+      "rewards": "東亞銀行信用卡獨家優先訂票",
       "conditions": [
         "提早於 Cityline 網頁登記成為會員",
-        "2026年8月25日上午10時準時優先訂購",
-        "備好東亞銀行 Visa 卡、Mastercard 卡或銀聯雙幣信用卡",
+        "於 2026年8月25日上午10時準時優先訂購",
+        "使用東亞銀行 Visa 卡、Mastercard 卡或銀聯雙幣信用卡購買門票",
         "每次透過熱線/網上進行訂購上限為6張",
-        "Cityline 將收取每張門票HK$80顧客服務費及每交易HK$50派遞服務費",
         "進行付款時需透過東亞手機銀行驗證網上交易"
       ],
       "requires_registration": "Yes",
       "deadline": "2026-08-28",
       "url": "https://www.hkbea.com/html/tc/bea-credit-card-entertainment-offer-2026-gigi-leung.html",
       "firstSeenDate": "2026-11-05",
-      "lastSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-07",
       "isNew": false,
       "status": "expired"
-    },
-    {
-      "id": "ed7657f4d054e4e4",
-      "bank_id": "bea",
-      "bank_name": "東亞銀行",
-      "title": "東亞銀行信用卡迎新獎賞 - 賞里．賞玩",
-      "rewards": "東亞銀行World Mastercard卡迎新獎賞",
-      "conditions": [
-        "上載信用卡申請文件",
-        "於2027年1月13日或之前成功申請東亞銀行World Mastercard卡並符合指定要求可享高達HK$500現金回贈1-2！",
-        "簽賬要求 憑卡作合資格簽賬滿HK$5,000或以上 憑卡作合資格簽賬滿HK$2,000或以上",
-        "「全新信用卡客戶」為於遞交申請日及批核之6個月內並無持有任何東亞銀行信用卡之主卡申請人（不包括東亞銀行公司卡及所有聯營卡和附屬卡或特選客戶）",
-        "「現有信用卡客戶」為於現時或於遞交申請日及批核之前6個月內曾持有任何東亞銀行信用卡之主卡申請人（不包括東亞銀行World Mastercard卡）",
-        "此外，無論餐飲還是購物等指定消費都可享高達12.5X獎分（相等於5%回贈）及二大專屬禮遇3！讓你隨時隨地都可以享受優惠，賺取回贈！",
-        "* 須經BEA Mall App完成登記「指定World Mastercard簽賬高達12.5X獎分」",
-        "相等於5%回贈以指定獎賞之優惠兌換率計算"
-      ],
-      "requires_registration": "No",
-      "deadline": "2027-01-13",
-      "url": "https://www.hkbea.com/html/tc/bea-credit-card-welcome-offer-wmc-q1.html",
-      "firstSeenDate": "2026-11-04",
-      "lastSeenDate": "2026-11-05",
-      "isNew": false,
-      "status": "expired",
-      "expiredDate": "2026-11-06"
     },
     {
       "id": "50e3922835a63585",
@@ -1037,6 +1033,26 @@
       "isNew": false,
       "status": "expired",
       "expiredDate": "2026-11-04"
+    },
+    {
+      "id": "181b06244e10194e",
+      "bank_id": "bea",
+      "bank_name": "東亞銀行",
+      "title": "BEA World Mastercard – 全新簽賬獎賞體驗",
+      "rewards": "指定類別簽賬高達12.5X獎分(=5%回贈) + 高達HK$500回贈迎新獎賞",
+      "conditions": [
+        "指定類別簽賬：美酒佳餚、健康醫療、至潮電玩、運動健身、海外購物",
+        "於BEA World專區以1,000分兌換每月驚喜",
+        "於BEA World專區以HK$1 + 指定獎分無限次換領旅遊保險"
+      ],
+      "requires_registration": "Yes",
+      "deadline": "未註明",
+      "url": "https://www.hkbea.com/html/tc/bea-credit-card-welcome-offer-wmc-q1.html",
+      "firstSeenDate": "2026-11-06",
+      "lastSeenDate": "2026-11-06",
+      "isNew": false,
+      "status": "expired",
+      "expiredDate": "2026-11-07"
     },
     {
       "id": "f2baccd0ab2d5571",
